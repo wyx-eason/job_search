@@ -1,63 +1,76 @@
-# China Campus Job Ops Design
+# 国内校招求职系统设计
 
-**Date:** 2026-07-28  
-**Status:** User-approved design  
-**Target user:** 王奕迅, 2027 new graduate, graduating June 2027
+**日期：** 2026-07-28
 
-## 1. Objective
+**状态：** 已完成中文化，等待用户复核
 
-Build a local-first job-search extension for the 2027 China campus recruitment cycle. The system must find current formal campus and early-batch openings, rank them against the candidate's preferences and verified capabilities, generate a one-page role-specific Chinese resume, assist with Chrome form filling, and stop before final submission.
+**目标用户：** 王奕迅，2027 届应届毕业生，预计 2027 年 6 月毕业
 
-The implementation will reuse `career-ops` for job evaluation, document generation, application tracking, learning-gap analysis, and browser-assisted application workflows. China-specific discovery, graduation-cohort validation, location policy, candidate evidence, and automation remain in a separate `china-campus-ops` project.
+## 1. 建设目标
 
-## 2. Confirmed Requirements
+建设一个本地优先、面向 2027 届国内校园招聘的求职扩展系统。系统需要发现最新正式校招和提前批岗位，根据用户偏好与已验证能力进行排序，为选定岗位生成一页中文定制简历，使用 Chrome 辅助填写申请表单，并在最终提交前停止。
 
-### 2.1 Candidate and role targets
+系统复用 `career-ops` 的岗位评估、材料生成、投递跟踪、技能缺口分析和浏览器辅助申请能力。国内岗位发现、毕业届别识别、地域策略、候选人事实校验和每日自动化由独立的 `china-campus-ops` 项目负责。
 
-- Candidate is a control science and engineering master's student graduating in June 2027.
-- Include only formal 2027 campus roles and early-batch campus recruitment.
-- Exclude routine internships, conversion internships, summer internships, and ordinary experienced-hire roles.
-- Primary role track: AI applications, LLM applications, agents, RAG, and industrial AI.
-- Primary role track: ADAS, calibration, control algorithms, simulation, system testing, robotics, and related vehicle roles.
-- Local broad track: control, automation, electrical engineering, equipment, testing, production technology, energy digitization, and other defensible adjacent roles.
-- State-owned and private employers are both acceptable.
+## 2. 全局语言约束
 
-### 2.2 Location policy
+- 项目自有文档必须使用简体中文，包括设计规格、实施计划、测试说明、运行手册、配置说明、故障说明和贡献指南。
+- 面向用户的界面、每日摘要、岗位报告、错误消息和交互提示默认使用简体中文。
+- 代码标识符、数据库字段、命令、路径、API 字段、标准名称和第三方专有名词保留英文，避免破坏兼容性。
+- 引用第三方英文原文时可保留英文，但必须在相邻位置提供中文说明。
+- 文档文件名采用 ASCII `kebab-case`，正文使用简体中文，兼顾工具兼容性与可读性。
+- 上游 `career-ops` 的原始文档不做批量翻译；本项目新增或维护的文档全部遵守本约束。
 
-1. Highest priority: Linfen and locations within roughly 150 km by practical short-distance travel.
-2. Core city: Xi'an, focused on AI applications, ADAS, control, automation, automotive electronics, and research institutes.
-3. Other large cities: representative applications for practice, with a daily result cap so they do not displace preferred locations.
+该约束同时写入项目根目录 `AGENTS.md`，作为后续所有代理和实现工作的全局规则。
 
-When route information is available, use actual travel distance. Otherwise, use coordinates and a curated city/county allowlist, label the distance as estimated, and never present an estimate as an exact commute.
+## 3. 已确认需求
 
-### 2.3 Discovery channels
+### 3.1 用户与岗位方向
 
-- Employer career websites.
-- Guopin and central/state-owned enterprise recruitment channels.
-- Nowcoder campus recruitment.
-- University employment information websites.
-- BOSS Zhipin.
-- Zhaopin.
-- 51job.
-- Liepin.
-- Public WeChat recruitment articles and manually imported WeChat links.
+- 用户为控制科学与工程硕士，2027 年 6 月毕业。
+- 仅纳入 2027 届正式校招与秋招提前批。
+- 排除日常实习、暑期实习、转正实习和普通社会招聘。
+- 核心方向一：AI 应用、LLM 应用、Agent、RAG 与工业 AI。
+- 核心方向二：ADAS、匹配标定、控制算法、仿真、系统测试、机器人及相关汽车岗位。
+- 临汾周边泛技术方向：控制、自动化、电气、设备、测试、生产技术、能源数字化及其他能够真实衔接的岗位。
+- 国企和私企均可。
 
-Public, stable sources may run unattended. Login-, CAPTCHA-, or anti-bot-protected sources must use an interactive Chrome supplement and must not block the unattended daily scan.
+### 3.2 地域策略
 
-### 2.4 Application boundary
+1. 最高优先级：临汾及实际短途出行约 150 公里范围。
+2. 核心城市：西安，重点关注 AI 应用、ADAS、控制、自动化、汽车电子和研究所岗位。
+3. 其他大城市：只选择有代表性的岗位用于练手，并设置每日数量上限，避免挤占主要目标。
 
-- The system may open the application page, fill safe fields, draft role-specific answers, and upload the selected resume.
-- The system must never click the final Submit, Send, or Apply control.
-- The candidate reviews and performs final submission.
-- Only after candidate confirmation may application state change to `applied`.
+能够获得地图路线时使用实际交通距离；无法获得时使用坐标距离与市县白名单估算，并明确标注估算方法和可信度，不能把估算距离表述为精确通勤距离。
 
-## 3. Architecture
+### 3.3 招聘渠道
+
+- 企业官方招聘网站。
+- 国聘及央企、国企招聘平台。
+- 牛客校招。
+- 高校就业信息网。
+- BOSS 直聘。
+- 智联招聘。
+- 前程无忧。
+- 猎聘。
+- 公开微信公众号招聘文章及用户手动导入的微信链接。
+
+公开且稳定的来源可以无人值守运行。需要登录、验证码或存在明显反自动化限制的来源，进入交互式 Chrome 补充流程，不能阻塞每日无人值守扫描。
+
+### 3.4 投递边界
+
+- 系统可以打开申请页面、填写安全字段、生成岗位相关回答并上传选定简历。
+- 系统不得点击最终的“提交”“发送”或“申请”按钮。
+- 用户检查内容并亲自完成最终提交。
+- 只有用户确认提交成功后，岗位状态才能变为 `applied`。
+
+## 4. 总体架构
 
 ```text
 E:\job_search
-|-- profile\                         # Immutable source resumes
-|-- career-ops\                      # Upstream engine, kept updateable
-`-- china-campus-ops\                # China campus extension
+|-- profile\                         # 原始简历，只读参考
+|-- career-ops\                      # 上游底座，保持可更新
+`-- china-campus-ops\                # 国内校招扩展
     |-- .agents\skills\
     |   `-- china-campus-job-search\
     |-- candidate\
@@ -72,148 +85,146 @@ E:\job_search
     `-- docs\
 ```
 
-### 3.1 Ownership boundaries
+### 4.1 责任边界
 
-- `profile/` remains an immutable reference. The system never overwrites the original `.tex` or PDF resumes.
-- `career-ops/` remains close to upstream. User facts and China-specific behavior must not be written into its system-owned core files.
-- `china-campus-ops/` owns candidate verification, China source adapters, automation, local data, and generated artifacts.
-- A bridge invokes supported `career-ops` workflows and imports only selected jobs, rather than duplicating the entire upstream engine.
+- `../profile/` 是不可变参考资料，系统不覆盖原始 `.tex` 或 PDF 简历。
+- `career-ops/` 尽量贴近上游，个人事实与国内规则不得写入其系统核心文件。
+- `china-campus-ops/` 负责候选人事实校验、国内来源适配、自动化、私有数据和生成物。
+- 通过桥接层调用 `career-ops` 支持的工作流，只把用户选中的岗位导入底座，不重复实现全部上游能力。
 
-### 3.2 Main components
+### 4.2 主要组件
 
-1. Source adapters collect public postings or create interactive browser tasks.
-2. Normalization converts all postings into one job contract.
-3. Eligibility rules enforce the 2027 formal-campus scope.
-4. Ranking produces separate Linfen-area, Xi'an, and practice-city lists.
-5. Candidate evidence controls what may appear in a resume.
-6. Learning tasks promote skills only after evidence-based verification.
-7. The career-ops bridge evaluates selected jobs and generates application artifacts.
-8. Chrome assistance fills forms but cannot submit them.
-9. Scheduling, reporting, and the dashboard expose daily results and source health.
+1. 来源适配器获取公开岗位或创建交互式浏览器任务。
+2. 标准化模块把所有岗位转换成统一数据结构。
+3. 届别规则执行 2027 届正式校招硬过滤。
+4. 排序模块分别生成临汾周边、西安重点和大城市练手列表。
+5. 候选人事实库决定哪些内容可以进入简历。
+6. 学习模块只有在证据验证后才能提升技能等级。
+7. `career-ops` 桥接层评估选定岗位并生成申请材料。
+8. Chrome 助手填写表单，但没有最终提交能力。
+9. 定时任务、每日报告和仪表盘展示结果与来源健康状态。
 
-## 4. Job Data Contract
+## 5. 岗位数据模型
 
-Use SQLite as the operational store. Each normalized job contains:
+使用 SQLite 作为运行数据存储。每条标准化岗位至少包含：
 
-- `id`: stable internal identifier.
-- `source` and `source_job_id`: origin and source-native identifier.
-- `company_raw` and `company_normalized`.
-- `title_raw` and `title_normalized`.
-- `posting_url` and `apply_url`.
-- `location_raw`, `city`, `district`, latitude, and longitude when known.
-- `distance_km`, `distance_method`, and `distance_confidence`.
-- `campus_year`, `recruitment_batch`, and `employment_type`.
-- `published_at`, `deadline`, `first_seen_at`, and `last_seen_at`.
-- `jd_text` and a content hash.
-- `source_confidence` and liveness state.
-- `pool`, eligibility result, match dimensions, total score, and workflow status.
+- `id`：稳定的内部标识。
+- `source`、`source_job_id`：来源及来源原始编号。
+- `company_raw`、`company_normalized`：原始与标准化公司名。
+- `title_raw`、`title_normalized`：原始与标准化岗位名。
+- `posting_url`、`apply_url`：岗位详情与实际申请链接。
+- `location_raw`、`city`、`district`、经纬度。
+- `distance_km`、`distance_method`、`distance_confidence`。
+- `campus_year`、`recruitment_batch`、`employment_type`。
+- `published_at`、`deadline`、`first_seen_at`、`last_seen_at`。
+- `jd_text` 与内容哈希。
+- `source_confidence` 与岗位存活状态。
+- `pool`、届别判定、各维度匹配分、总分和流程状态。
 
-### 4.1 Deduplication
+### 5.1 跨来源去重
 
-Prefer an official requisition ID. When no stable ID exists, derive a fingerprint from normalized company, normalized title, city, recruitment batch, and a JD-content similarity signal.
+优先使用企业官方职位编号。没有稳定编号时，以标准化公司、标准化岗位、城市、招聘批次和 JD 内容相似度生成指纹。
 
-Merge duplicated postings across sources. Preserve every source URL, but prefer the employer's official career page as the canonical application link.
+同一岗位的多个来源合并为一条记录，保留全部来源链接，并优先把企业官网设为主申请链接。
 
-### 4.2 Eligibility classification
+### 5.2 2027 届判定
 
-Include when at least one reliable signal identifies a 2027 formal campus or early-batch role, such as:
+满足以下任一可靠条件时可以纳入：
 
-- Explicit `2027 campus recruitment`, `2027 autumn recruitment`, or `2027 early batch` language.
-- An accepted graduation window that includes June 2027.
-- An official campaign page whose recruitment cohort is explicitly 2027.
+- 明确写有“2027 届校园招聘”“2027 届秋招”或“2027 届提前批”。
+- 接受的毕业时间范围覆盖 2027 年 6 月。
+- 官方招聘专题明确属于 2027 届招聘批次。
 
-Exclude when reliable evidence identifies an internship, conversion internship, summer internship, experienced-hire role, incompatible graduation cohort, closed application, or expired deadline.
+出现日常实习、转正实习、暑期实习、社招、届别不匹配、申请关闭或截止日期已过等可靠信号时排除。
 
-Postings that mention only `new graduate` or `recent graduate` without a usable graduation window receive `needs_cohort_confirmation` and appear outside the main ranked lists.
+只写“应届生”或“毕业两年内”但没有明确毕业范围的岗位标记为 `needs_cohort_confirmation`，放入单独确认列表，不进入主排序池。
 
-## 5. Discovery and Daily Scan
+## 6. 岗位发现与每日扫描
 
-### 5.1 Unattended scan
+### 6.1 无人值守扫描
 
-A Windows scheduled task runs once daily, initially at 08:00 Asia/Shanghai. The time remains configurable.
+Windows 定时任务每天运行一次，初始时间为北京时间上午 08:00，后续可配置。
 
-The unattended phase scans only public sources that can be used reliably and within their access rules. It performs normalization, cohort classification, deduplication, liveness checks, scoring, persistence, and report generation. One source failure must not fail the entire run.
+无人值守阶段只扫描能够可靠访问且符合访问规则的公开来源，执行标准化、届别判定、去重、岗位存活检查、评分、持久化和报告生成。单一来源失败不能导致整个任务失败。
 
-### 5.2 Interactive supplement
+### 6.2 交互式补充
 
-After the unattended scan, sources requiring login or browser interaction create pending tasks. A Codex prompt offers to open a dedicated Chrome profile and process them serially. BOSS, Zhaopin, 51job, and Liepin belong here when their current pages require authentication or challenge the browser.
+无人值守阶段结束后，需要登录或浏览器操作的来源生成待处理任务。Codex 提示用户是否打开专用 Chrome 配置并串行处理。BOSS、智联、前程无忧和猎聘在当前页面需要认证或触发验证时进入此流程。
 
-The system does not bypass CAPTCHAs, evade access controls, or run bulk automated messaging.
+系统不得绕过验证码、规避访问控制或批量自动发送消息。
 
-### 5.3 Coverage registry
+### 6.3 企业与来源注册表
 
-Maintain a versioned employer/source registry with four groups:
+维护可版本化的企业和来源注册表，分为四组：
 
-- Linfen-area energy, power, manufacturing, automation, and state-owned employers.
-- Xi'an AI, ADAS, automotive electronics, defense electronics, institutes, control, and automation employers.
-- National representative AI and ADAS employers.
-- Public ATS directories and long-tail official career pages discovered through search.
+- 临汾周边能源、电力、制造、自动化及国企单位。
+- 西安 AI、ADAS、汽车电子、军工电子、研究所、控制与自动化单位。
+- 全国代表性 AI 与 ADAS 企业。
+- 公开 ATS 目录及通过搜索发现的长尾企业官网。
 
-Every run reports source coverage, successes, partial failures, interactive tasks, and known blind spots. The system must never claim complete market coverage.
+每次运行都必须报告来源覆盖、成功项、部分失败、交互任务和已知盲区。系统不得宣称覆盖全部招聘市场。
 
-## 6. Ranking
+## 7. 岗位排序
 
-Apply eligibility as a hard gate, then calculate independent dimensions:
+届别判定作为硬门槛，通过后计算以下独立维度：
 
-- Role and evidence match.
-- Location preference.
-- Publication freshness and deadline urgency.
-- Source confidence and application-link quality.
-- Employer/industry preference.
-- Gap severity and estimated learning cost.
+- 岗位与已验证能力的匹配度。
+- 地域意愿。
+- 发布时间新鲜度和截止日期紧迫度。
+- 来源可信度与申请链接质量。
+- 企业和行业偏好。
+- 技能缺口严重程度与预计学习成本。
 
-Produce three independent pools rather than one global leaderboard:
+系统生成三个独立排序池，不把全部岗位混在一个总榜中：
 
-1. Linfen-area broad technical roles, where location and defensible adjacency receive the highest weights.
-2. Xi'an AI/ADAS/control roles, where technical fit and location both receive high weights.
-3. Other-city practice roles, capped at five new recommendations per day.
+1. 临汾周边泛技术岗位：地域与真实可衔接程度权重最高。
+2. 西安 AI、ADAS 与控制岗位：技术匹配和地域权重都较高。
+3. 其他大城市练手岗位：每天最多推荐 5 个。
 
-The daily summary displays at most ten new Linfen-area roles, ten Xi'an roles, and five practice roles, plus separate cohort/location confirmation lists.
+每日摘要最多显示 10 个临汾周边新增岗位、10 个西安新增岗位和 5 个练手岗位；届别或地点不确定的岗位单独列出。
 
-## 7. Candidate Evidence Model
+## 8. 候选人事实库
 
-The two existing resumes are source documents, not unquestioned truth. Extract candidate data into:
+现有两份简历只是信息来源，不代表其中所有内容都已充分掌握或经过确认。系统将信息提取到：
 
-- `candidate/facts.yml`: education, employment, project, award, publication, and achievement facts.
-- `candidate/skills.yml`: proficiency, evidence, verification status, and allowed wording.
-- `candidate/preferences.yml`: targets, location policy, employer preferences, and exclusions.
-- `candidate/autofill.yml`: locally stored non-sensitive form fields.
-- `candidate/pending-questions.md`: unclear or incomplete claims requiring an interview.
+- `candidate/facts.yml`：教育、实习、项目、奖项、论文和成果事实。
+- `candidate/skills.yml`：技能等级、证据、验证状态和允许表述。
+- `candidate/preferences.yml`：岗位、地域、企业偏好和排除条件。
+- `candidate/autofill.yml`：允许本地保存的非敏感表单字段。
+- `candidate/pending-questions.md`：描述不清或需要补充的问题。
 
-Each candidate claim has a stable ID, source, context, candidate action, evidence, verification state, and allowed/forbidden phrasing. Quantified outcomes may be used only when supported by a source or explicitly confirmed by the candidate.
+每条事实都有稳定 ID、来源、使用场景、用户具体动作、证据、验证状态以及允许和禁止的措辞。量化结果只有在原始资料支持或用户明确确认后才能使用。
 
-The initial audit must resolve the current publication wording. `Published` and `minor revision` are mutually exclusive states unless there are two separate papers.
+首次资料核验必须解决当前论文状态表述。“已发表”和“小修中”不能同时描述同一篇论文，除非实际存在两篇不同论文。
 
-## 8. Skill Levels and Learning Gate
+## 9. 技能等级与学习门槛
 
-Use these states:
-
-| State | Meaning | Resume permission |
+| 状态 | 含义 | 简历权限 |
 |---|---|---|
-| `unverified` | Mentioned in a source but not confirmed | Do not use |
-| `learning` | Actively studying without completed verification | Normally do not use |
-| `basic` | Can explain fundamentals and has a small verified exercise | Use `understands`, `has foundational experience`, or equivalent |
-| `practical` | Used in a real project and can explain implementation decisions | Use `applied`, `implemented`, or `used` |
-| `strong` | Deep, evidenced ownership and defensible results | Use `proficient` or `independently designed` where accurate |
+| `unverified` | 原始材料提及但尚未确认 | 不使用 |
+| `learning` | 正在学习，尚未完成验证 | 通常不使用 |
+| `basic` | 能解释基础原理并完成经过验证的小练习 | 可写“了解”“具备基础”“完成基础实践” |
+| `practical` | 在真实项目中使用并能解释实现选择 | 可写“应用”“实现”“使用” |
+| `strong` | 有充分证据、深度所有权和可辩护成果 | 准确时可写“熟练”“独立设计” |
 
-A skill may move from `learning` to `basic` only after evidence such as a runnable exercise, small project, result analysis, written explanation, or a passed technical question set. Watching a tutorial or reading documentation alone is insufficient.
+技能从 `learning` 升为 `basic`，必须提供可运行练习、小项目、结果分析、书面解释或通过技术问答等证据。只看教程或文档不能升级。
 
-Learning tasks should favor recurring gaps across target jobs and reuse existing projects when possible. Examples include adding MPC to an existing simulation, rebuilding an agent workflow with a requested framework, or packaging an existing RAG system with FastAPI and Docker.
+学习任务优先处理多个目标 JD 反复出现的缺口，并尽量复用现有项目。例如：在现有仿真中加入 MPC、使用指定框架重构 Agent 流程，或用 FastAPI 和 Docker 封装现有 RAG 系统。
 
-## 9. Resume Generation
+## 10. 定制简历生成
 
-For a selected job:
+选定岗位后执行：
 
-1. Archive the complete JD.
-2. Choose the AI application, ADAS, or local broad-role base profile.
-3. Extract hard requirements, responsibilities, and truthful keywords.
-4. Select only verified claims and skills permitted by their current level.
-5. Reorder and rephrase evidence for the target role without changing facts.
-6. Generate a one-page Chinese HTML resume and PDF.
-7. Check factual traceability, keyword coverage, page count, visual layout, and PDF text extraction.
-8. Preserve genuine gaps in the match report rather than fabricating coverage.
+1. 归档完整 JD。
+2. 选择 AI 应用、ADAS 或临汾泛技术岗位母版。
+3. 提取硬性要求、职责与可真实使用的关键词。
+4. 仅选择已验证事实和当前等级允许使用的技能。
+5. 根据岗位调整顺序与措辞，但不改变事实。
+6. 生成一页中文 HTML 简历和 PDF。
+7. 检查事实追溯、关键词覆盖、页数、视觉布局和 PDF 文本可提取性。
+8. 在匹配报告中保留真实缺口，不编造覆盖。
 
-Write each application package to:
+每个岗位的申请包写入：
 
 ```text
 output/applications/YYYY-MM-DD_company_role/
@@ -225,119 +236,120 @@ output/applications/YYYY-MM-DD_company_role/
 `-- generation-audit.json
 ```
 
-`generation-audit.json` maps every material resume statement to one or more candidate claim IDs and records the wording rule used.
+`generation-audit.json` 将每条重要简历表述映射到一个或多个候选人事实 ID，并记录使用的措辞规则。
 
-## 10. Chrome-Assisted Application
+## 11. Chrome 辅助投递
 
-Use a dedicated Chrome user-data directory under `local/chrome-profile/`. The candidate logs in manually. Chrome stores its own session; the system does not store passwords.
+使用 `local/chrome-profile/` 下的专用 Chrome 用户数据目录。用户首次手动登录，登录状态由 Chrome 保存，系统不保存密码。
 
-The flow is:
+投递流程：
 
-1. Recheck posting liveness and company/role identity.
-2. Load the correct application package.
-3. Open the application URL in the dedicated Chrome profile.
-4. Detect the destination ATS after redirects.
-5. Inventory all form fields and pre-scan knockout questions.
-6. Fill safe fields and upload the job-specific resume.
-7. Request confirmation for sensitive or decision-bearing fields.
-8. Re-read the form and validate visible values.
-9. Bring Chrome to the foreground and stop before final submission.
-10. Update status only after the candidate confirms submission succeeded.
+1. 重新检查岗位是否开放以及公司、岗位是否一致。
+2. 加载正确的岗位申请包。
+3. 在专用 Chrome 中打开申请链接。
+4. 跳转后重新识别真实 ATS。
+5. 读取全部字段并预扫描淘汰性问题。
+6. 填写安全字段并上传该岗位对应简历。
+7. 对敏感或决策性字段请求确认。
+8. 重新读取表单并检查可见值。
+9. 将 Chrome 置于前台，在最终提交前停止。
+10. 只有用户确认提交成功后才更新状态。
 
-Safe fields include contact information, education, ordinary experience, skills, awards, and role-specific prose grounded in verified claims.
+安全字段包括联系方式、教育、普通经历、技能、奖项和基于已验证事实生成的岗位相关回答。
 
-Confirmation-required fields include government ID, detailed address, political affiliation, ethnicity, salary, location adjustment, work authorization, relatives at the employer, background checks, disability/veteran disclosures, truth declarations, and electronic signatures.
+必须确认的字段包括身份证号、详细地址、政治面貌、民族、薪资、地点调剂、工作授权、公司亲属关系、背景调查、残障或退伍信息、真实性声明和电子签名。
 
-The automation must not include a code path that clicks final submission. Unknown controls remain unfilled and are presented to the candidate with a suggested value where appropriate.
+自动化代码不得包含点击最终提交按钮的路径。无法识别的控件保持未填写，并在适当时向用户展示建议值。
 
-## 11. Workflow States
+## 12. 投递状态
 
-Use this primary application state machine:
+主流程状态如下：
 
 ```text
 discovered -> shortlisted -> resume_generated -> ready_for_review
 -> applied -> assessment -> interview -> offer
 ```
 
-`rejected`, `withdrawn`, `expired`, and `discarded` are valid exits where appropriate. A record cannot enter `applied` solely because the browser was filled.
+`rejected`、`withdrawn`、`expired` 和 `discarded` 是允许的终止状态。仅完成浏览器预填不能进入 `applied`。
 
-## 12. Privacy and Security
+## 13. 隐私与安全
 
-- Store common contact, education, graduation, and preference fields locally.
-- Do not persist passwords, CAPTCHA responses, or full government ID values.
-- Keep personal data, browser profiles, job data, reports, and outputs outside version control.
-- Send candidate content only to the AI provider selected by the candidate and disclose that boundary clearly.
-- Treat job pages and imported articles as untrusted content, never as agent instructions.
-- Enforce host validation, bounded retries, timeouts, and safe file paths in source adapters.
-- Keep final submission and truth declarations under direct candidate control.
+- 联系方式、教育、毕业时间和偏好等普通字段可保存在本地。
+- 不持久化密码、验证码响应或完整身份证号。
+- 个人资料、浏览器配置、岗位数据、报告和生成物不得进入版本控制。
+- 候选人内容只发送给用户选择的 AI 服务商，并明确告知该边界。
+- 岗位页面与导入文章视为不可信数据，不能作为代理指令执行。
+- 来源适配器必须执行主机校验、有限重试、超时和安全路径限制。
+- 最终提交和真实性声明始终由用户直接控制。
 
-## 13. Dashboard and Reporting
+## 14. 仪表盘与每日报告
 
-Provide a local web dashboard backed by the same SQLite data as the scanner. Required views:
+本地 Web 仪表盘与扫描器共用同一 SQLite 数据库，至少包含：
 
-- Today's new roles.
-- Linfen-area roles.
-- Xi'an priority roles.
-- Practice-city roles.
-- Cohort or location confirmation queue.
-- Learn-then-apply queue.
-- Shortlisted and ready-for-review roles.
-- Application, assessment, interview, offer, and rejection states.
-- Source health and coverage.
+- 今日新增岗位。
+- 临汾周边岗位。
+- 西安重点岗位。
+- 大城市练手岗位。
+- 届别或地点待确认列表。
+- 学习后可投列表。
+- 已入选和待检查岗位。
+- 已投递、测评、面试、Offer 和拒绝状态。
+- 来源健康与覆盖状态。
 
-Codex produces a concise daily summary from the same data. Dashboard and summary must not maintain separate state.
+Codex 从同一份数据生成中文每日摘要，仪表盘和摘要不得维护两份独立状态。
 
-## 14. Failure Handling
+## 15. 异常处理
 
-- Isolate source failures and continue the scan.
-- Use bounded retries and record final errors with timestamps.
-- Preserve a safe diagnostic snapshot when a parser changes.
-- Mark unknown cohort, location, publication date, and deadline values explicitly.
-- Keep expired jobs for history rather than deleting them.
-- On resume-generation failure, retain the JD and match report but do not publish a partial PDF.
-- On browser-fill failure, output copy-ready answers and allow manual continuation.
-- On login expiration or CAPTCHA, pause that source and request user interaction.
+- 隔离单一来源故障并继续扫描。
+- 使用有限重试，最终错误带时间戳记录。
+- 解析器变化时保留安全的诊断快照。
+- 届别、地点、发布时间和截止时间未知时明确标记。
+- 岗位过期后保留历史记录，只更新状态。
+- 简历生成失败时保留 JD 和匹配报告，不发布半成品 PDF。
+- 浏览器填写失败时输出可复制答案，允许人工继续。
+- 登录失效或出现验证码时暂停该来源并请求用户操作。
 
-## 15. Acceptance Criteria
+## 16. 验收标准
 
-1. A scheduled daily scan completes even when individual sources fail.
-2. Formal 2027 campus and early-batch fixtures pass eligibility; internship and experienced-hire fixtures fail it.
-3. Cross-source duplicates collapse into one canonical job with all source links preserved.
-4. Linfen-area, Xi'an, and practice-city jobs are ranked in separate pools.
-5. Every displayed job retains provenance, freshness, cohort evidence, and an application link.
-6. Generated resumes remain one page and every material claim is traceable.
-7. Unverified skills cannot be promoted by the generator.
-8. A verified learning task can promote a skill to `basic` with restricted wording.
-9. Chrome can fill a controlled test form and upload the intended resume.
-10. No automated code path can activate final submission.
-11. Missing sensitive values force confirmation or remain blank.
-12. Dashboard and Codex summary agree on jobs and workflow state.
-13. Every scan publishes an honest source-coverage and failure report.
+1. 单个来源失败时，每日定时扫描仍能完成。
+2. 2027 届正式校招和提前批测试样本被纳入，实习与社招样本被排除。
+3. 跨来源重复岗位合并成一条，并保留全部来源链接。
+4. 临汾周边、西安和大城市练手岗位分别排序。
+5. 每个展示岗位保留来源、发布时间、届别证据和申请链接。
+6. 生成简历保持一页，每条重要事实均可追溯。
+7. 未验证技能不能被生成器擅自提升等级。
+8. 完成验证的学习任务可以把技能提升到 `basic`，并限制表述强度。
+9. Chrome 可以填写受控测试表单并上传正确简历。
+10. 自动化代码不存在触发最终提交的路径。
+11. 敏感字段缺少确认时必须留空或暂停。
+12. 仪表盘与 Codex 每日摘要中的岗位和状态一致。
+13. 每次扫描都发布真实的来源覆盖与失败报告。
+14. 所有项目自有文档和用户可见文本通过中文语言约束检查。
 
-## 16. Delivery Phases
+## 17. 交付阶段
 
-### Phase 1: Useful local MVP
+### 第一阶段：可用的本地 MVP
 
-- Candidate evidence import and audit.
-- Core SQLite contract and eligibility rules.
-- Existing public `career-ops` China providers and a curated initial employer registry.
-- Daily summary, three ranking pools, and selected-job import into `career-ops`.
-- One-page Chinese resume generation with traceability.
-- Controlled Chrome form-fill test that never submits.
+- 候选人事实导入与核验。
+- SQLite 核心数据结构与届别规则。
+- 复用 `career-ops` 现有国内公开来源，并建立首批企业注册表。
+- 每日摘要、三个排序池及选定岗位导入桥接。
+- 带事实追溯的一页中文简历生成。
+- 绝不提交的受控 Chrome 表单填写测试。
 
-### Phase 2: Coverage expansion
+### 第二阶段：扩大岗位覆盖
 
-- Linfen-area enterprise and state-owned source adapters.
-- Xi'an employer and institute coverage.
-- Guopin, university employment sites, and public campus aggregators.
-- Interactive Chrome search tasks for login-based platforms.
-- Local dashboard.
+- 临汾周边企业和国企来源适配器。
+- 西安企业与研究所覆盖。
+- 国聘、高校就业网和公开校招聚合来源。
+- 登录型平台的交互式 Chrome 搜索任务。
+- 本地 Web 仪表盘。
 
-### Phase 3: Learning and feedback optimization
+### 第三阶段：学习与反馈优化
 
-- Recurring skill-gap aggregation.
-- Evidence-based learning exercises and promotion gates.
-- Assessment/interview preparation tied to submitted claims.
-- Outcome analysis that adjusts ranking without rewriting factual history.
+- 跨岗位技能缺口聚合。
+- 基于证据的学习练习与升级门槛。
+- 与实际提交材料关联的测评和面试准备。
+- 根据投递结果调整排序，但不改写事实历史。
 
-This phased delivery prioritizes finding and applying to real roles before broad source coverage or advanced analytics.
+分阶段交付优先保证能够发现并投递真实岗位，然后再扩大来源覆盖和增加高级分析能力。
