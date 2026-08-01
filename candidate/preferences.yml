@@ -1,0 +1,39 @@
+candidate:
+  graduation_date: "2027-06"
+  degree: "控制科学与工程硕士"
+  language: "zh-CN"
+targets:
+  primary:
+    - "AI 应用"
+    - "大模型应用"
+    - "ADAS"
+    - "控制算法"
+    - "仿真"
+    - "系统测试"
+  local_broad:
+    - "控制"
+    - "自动化"
+    - "电气"
+    - "设备"
+    - "生产技术"
+    - "能源数字化"
+locations:
+  linfen_radius_km: 150
+  linfen_city: "临汾"
+  core_cities:
+    - "西安"
+  practice_cities: []
+recruitment:
+  campus_year: 2027
+  include_batches:
+    - "秋招"
+    - "提前批"
+  exclude_types:
+    - "日常实习"
+    - "暑期实习"
+    - "转正实习"
+    - "社会招聘"
+limits:
+  daily_linfen: 10
+  daily_xian: 10
+  daily_practice: 5

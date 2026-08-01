@@ -1,0 +1,11 @@
+{
+  "sources": [
+    {"id": "career-ops-public", "name": "career-ops 公开岗位源", "type": "import", "enabled": true},
+    {"id": "official-careers", "name": "企业官方招聘网站", "type": "public", "enabled": true},
+    {"id": "state-owned", "name": "国聘及央国企平台", "type": "public", "enabled": true},
+    {"id": "campus", "name": "牛客与高校就业网", "type": "interactive-or-public", "enabled": true},
+    {"id": "aggregators", "name": "智联、前程无忧、猎聘", "type": "interactive-or-public", "enabled": true},
+    {"id": "boss-browser", "name": "BOSS 直聘 Chrome 补充", "type": "interactive", "enabled": true},
+    {"id": "wechat-import", "name": "微信公众号手动导入", "type": "manual", "enabled": true}
+  ]
+}

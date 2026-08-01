@@ -1,0 +1,15 @@
+node_modules/
+data/*.db
+data/*.json
+data/*.log
+reports/daily/*.md
+output/
+local/
+candidate/autofill.yml
+candidate/facts.yml
+candidate/skills.yml
+candidate/pending-questions.md
+*.log
+.env
+.env.*
+!\.env.example
