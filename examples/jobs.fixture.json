@@ -1,0 +1,33 @@
+[
+  {
+    "source": "official",
+    "source_job_id": "AI-2027-001",
+    "company": "示例 AI 公司",
+    "title": "AI 应用工程师",
+    "city": "西安",
+    "description": "2027 届秋招，负责 RAG 与 Agent 应用开发",
+    "posting_url": "https://example.com/jobs/AI-2027-001",
+    "published_at": "2026-07-30",
+    "source_confidence": "high"
+  },
+  {
+    "source": "official",
+    "source_job_id": "CTRL-2027-002",
+    "company": "临汾示例制造企业",
+    "title": "自动化控制工程师",
+    "city": "临汾",
+    "description": "2027 届提前批，负责自动化设备调试与控制",
+    "posting_url": "https://example.com/jobs/CTRL-2027-002",
+    "published_at": "2026-07-29",
+    "source_confidence": "high"
+  },
+  {
+    "source": "nowcoder",
+    "source_job_id": "INTERNSHIP-003",
+    "company": "示例公司",
+    "title": "算法实习生",
+    "city": "西安",
+    "description": "2027 届实习招聘",
+    "posting_url": "https://example.com/jobs/INTERNSHIP-003"
+  }
+]
