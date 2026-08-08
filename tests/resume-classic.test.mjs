@@ -49,9 +49,10 @@ test("教育背景日期右对齐、学校左对齐", () => {
 test("实习条目：公司行、角色+技术栈行、要点加粗", () => {
   assert.match(html, /博世 \(Bosch\) · 苏州/);
   assert.match(html, /AI 应用开发实习生/);
-  assert.match(html, /class="tech">Python/);
+  assert.match(html, /class="tech">/);
+  assert.match(html, /<strong>Python<\/strong>/);
   assert.match(html, /<strong>LLM<\/strong>/i);
-  assert.match(html, /三层 Agent 架构/);
+  assert.match(html, /三层 <strong>Agent<\/strong> 架构/);
 });
 
 test("荣誉行标题左对齐、年份右对齐", () => {
