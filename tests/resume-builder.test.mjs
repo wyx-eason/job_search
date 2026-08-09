@@ -101,7 +101,18 @@ test("按 JD 方向选择基类简历版本：AI 岗不混入 ADAS 内容，双�
   assert.deepEqual(adasSel.facts.map((f) => f.id), ["adas", "manual"]);
   const bothSel = selectBaseResumeFacts(facts, "岗位职责：负责 LQR 控制参数匹配与 AI Agent 问答系统开发，使用 RAG。");
   assert.equal(bothSel.mode, "both");
-  assert.equal(pickResumeMode("岗位职责：纯测试岗位，负责软硬件测试与缺陷跟踪。"), "both");
+  assert.equal(pickResumeMode("岗位职责：纯测试岗位，负责软硬件测试与缺陷跟踪。"), "auto");
+});
+
+test("无方向信号时按 JD 重合度选单一基类，避免合并两份", () => {
+  const facts = [
+    { id: "ai", claim: "教育背景 示例大学 硕士。实习经历 博世：AI Agent 与 RAG。技术技能 LLM、Python。", source: "agent_llm_general_2026.tex", status: "unverified" },
+    { id: "adas", claim: "教育背景 示例大学 硕士。实习经历 博世：ADAS 标定与 LQR。技术技能 C++、嵌入式。", source: "integration_adas_2026.tex", status: "unverified" }
+  ];
+  const sel = selectBaseResumeFacts(facts, "岗位职责：负责软件测试与缺陷跟踪，熟悉 Python 与脚本开发。");
+  assert.equal(sel.mode, "auto");
+  assert.equal(sel.facts.length, 1);
+  assert.equal(sel.facts[0].id, "ai");
 });
 
 test("AI 岗生成聚焦简历：完整展开 AI 实习要点且不混入 ADAS 专属内容", async () => {

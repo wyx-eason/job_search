@@ -103,6 +103,26 @@ test("润色失败（接口 401）时回退到原始板块", async () => {
   assert.deepEqual(next.internship, ["原实习"]);
 });
 
+test("润色失败后自动重试一次，第二次成功则采用润色结果", async () => {
+  let calls = 0;
+  const sections = { education: [], internship: ["原实习"], project: [], skills: [], honors: [], other: [] };
+  const fetchImpl = async () => {
+    calls++;
+    if (calls === 1) throw new Error("network flake");
+    return { ok: true, json: async () => ({ output_text: JSON.stringify({ internship: ["改写后的实习"], project: [], skills: [] }) }) };
+  };
+  const { sections: next, meta } = await polishResumeSections({
+    jdText: "JD",
+    sections,
+    config: { apiKey: "k", baseUrl: "https://api.deepseek.com/v1", model: "m", apiStyle: "responses" },
+    fetchImpl,
+    timeoutMs: 5000
+  });
+  assert.equal(calls, 2);
+  assert.equal(meta.ok, true);
+  assert.deepEqual(next.internship, ["改写后的实习"]);
+});
+
 test("未配置 LLM 时不走润色", async () => {
   const sections = { education: [], internship: ["x"], project: [], skills: [], honors: [], other: [] };
   const { sections: next, meta } = await polishResumeSections({ jdText: "JD", sections, config: null });

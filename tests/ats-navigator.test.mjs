@@ -37,7 +37,8 @@ test("文件名岗位名清洗：去掉板块名和后续标签", () => {
 test("公司级汇总行在 ATS 页面上延迟生成简历", () => {
   assert.equal(shouldDeferResume({ title: "算法类、研发工程类、产品类等" }, "https://app.mokahr.com/x#/jobs"), true);
   assert.equal(shouldDeferResume({ title: "自动驾驶算法工程师" }, "https://app.mokahr.com/x#/jobs"), false);
-  assert.equal(shouldDeferResume({ title: "算法类、研发工程类等" }, "https://job.xpu.edu.cn/detail/job?id=1"), false);
+  assert.equal(shouldDeferResume({ title: "算法类、研发工程类等" }, "https://campus.jd.com/api/wx/position/index"), true);
+  assert.equal(shouldDeferResume({ title: "技术方向、产品方向、综合方向、物流方向" }, "https://campus.jd.com/api/wx/position/index"), true);
 });
 
 test("识别具体岗位详情页 URL", () => {
