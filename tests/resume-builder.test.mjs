@@ -166,6 +166,15 @@ test("两版简历合并：同公司实习保留两个角度，技能按主题�
   assert.ok(merged.skills.some((s) => s.includes("ADAS 与系统集成")));
 });
 
+test("荣誉奖项去重：与长条目重复的短条目不重复出现", () => {
+  const facts = [
+    { id: "ai", claim: "荣誉与奖项 荣誉奖学金 | 浙江省优秀毕业生、研究生期间校级二等奖学金 2022-2025", source: "a.tex", status: "unverified" },
+    { id: "manual", claim: "荣誉与奖项 研究生期间获得校级二等奖学金。", source: "manual-confirm", status: "unverified" }
+  ];
+  const merged = mergeSectionsFromFacts(facts);
+  assert.equal(merged.honors.filter((h) => h.includes("二等奖学金")).length, 1);
+});
+
 test("简历不含 LaTeX 残留且联系方式无括号嵌套", () => {
   const facts = loadFacts();
   const candidate = buildFormAnswers();
