@@ -196,6 +196,34 @@ test("已填写字段不被覆盖，重复扫描不重复填写", async (t) => {
   assert.equal(r2.filled.length, 0);
 });
 
+test("用户手动修改的字段不再被自动填充覆盖，清空后也不回填", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(pathToFileURL(path.resolve("tests/fixtures/apply-form.html")).href);
+  const candidate = loadCandidateAutofill();
+  await autofillApplyForm(page, candidate);
+  assert.ok((await page.inputValue("#phone")).length > 0, "手机号已被自动填充");
+  await page.click("#phone");
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type("13900001111");
+  assert.equal(await page.inputValue("#phone"), "13900001111");
+  const r1 = await autofillApplyForm(page, candidate);
+  assert.ok(r1.userEdited >= 1, "识别到用户修改");
+  assert.equal(await page.inputValue("#phone"), "13900001111", "修改后的手机号不被覆盖");
+  await page.click("#phone");
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Delete");
+  assert.equal(await page.inputValue("#phone"), "");
+  const r2 = await autofillApplyForm(page, candidate);
+  assert.equal(await page.inputValue("#phone"), "", "清空后不回填");
+  assert.ok(r2.userEdited >= 1);
+});
+
 test("上传简历助手可直接替换表单文件", async (t) => {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
   const context = await chromium.launchPersistentContext(profileDir, {
