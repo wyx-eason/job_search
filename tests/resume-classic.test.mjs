@@ -80,4 +80,8 @@ test("splitRoleLine 切分角色/部门/技术栈", () => {
   assert.equal(role, "AI 应用开发实习生");
   assert.equal(dept, "智驾匹配部门");
   assert.equal(tech, "Python, LLM, RAG");
+  const fullWidth = splitRoleLine("AI 应用开发实习生｜智驾匹配部门｜Python, LLM, RAG");
+  assert.equal(fullWidth.role, "AI 应用开发实习生");
+  assert.equal(fullWidth.dept, "智驾匹配部门");
+  assert.equal(fullWidth.tech, "Python, LLM, RAG");
 });

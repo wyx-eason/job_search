@@ -33,8 +33,8 @@ test("润色提示包含用户修改意见", () => {
 test("润色成功时替换实习/项目/技能板块并保留教育荣誉", async () => {
   const sections = {
     education: ["西安电子科技大学 硕士"],
-    internship: ["博世实习：实现 RAG 检索模块。"],
-    project: ["飞艇项目：PPO/D3QN。"],
+    internship: ["博世 (Bosch) · 苏州 2026.03 -- 至今。AI 应用开发实习生 | 智驾匹配部门 | Python, LLM。设计 RAG 检索模块。"],
+    project: ["飞艇仿真训练系统 2025.04 -- 至今。独立负责人 | Python, PyTorch。实现 PPO/D3QN。"],
     skills: ["熟练使用 Python。"],
     honors: ["二等奖学金"],
     other: []
@@ -46,8 +46,8 @@ test("润色成功时替换实习/项目/技能板块并保留教育荣誉", asy
         {
           message: {
             content: JSON.stringify({
-              internship: ["改写后的实习"],
-              project: ["改写后的项目"],
+              internship: [["改写后的实习要点"]],
+              project: [["改写后的项目要点"]],
               skills: ["改写后的技能"]
             })
           }
@@ -62,7 +62,10 @@ test("润色成功时替换实习/项目/技能板块并保留教育荣誉", asy
     fetchImpl
   });
   assert.equal(meta.ok, true);
-  assert.deepEqual(next.internship, ["改写后的实习"]);
+  assert.ok(next.internship[0].includes("博世 (Bosch) · 苏州 2026.03 -- 至今"), "结构条目保留公司行与日期");
+  assert.ok(next.internship[0].includes("改写后的实习要点"), "要点被 LLM 改写");
+  assert.ok(!next.internship[0].includes("设计 RAG 检索模块"), "原要点被替换");
+  assert.ok(next.project[0].includes("改写后的项目要点"));
   assert.deepEqual(next.education, ["西安电子科技大学 硕士"]);
   assert.deepEqual(next.honors, ["二等奖学金"]);
 });
@@ -74,7 +77,7 @@ test("Responses 风格：请求 /responses 并以 output_text 解析", async () 
   const fetchImpl = async (url, opts) => {
     calledUrl = url;
     calledBody = JSON.parse(opts.body);
-    return { ok: true, json: async () => ({ output_text: JSON.stringify({ internship: ["改写后的实习"] }) }) };
+    return { ok: true, json: async () => ({ output_text: JSON.stringify({ internship: [["改写后的实习"]], project: [], skills: [] }) }) };
   };
   const { sections: next, meta } = await polishResumeSections({
     jdText: "JD",
@@ -86,7 +89,7 @@ test("Responses 风格：请求 /responses 并以 output_text 解析", async () 
   assert.equal(calledBody.model, "gpt-5.6-sol");
   assert.equal(typeof calledBody.input, "string");
   assert.equal(meta.ok, true);
-  assert.deepEqual(next.internship, ["改写后的实习"]);
+  assert.ok(next.internship[0].includes("改写后的实习"));
 });
 
 test("润色失败（接口 401）时回退到原始板块", async () => {
@@ -109,7 +112,7 @@ test("润色失败后自动重试一次，第二次成功则采用润色结果",
   const fetchImpl = async () => {
     calls++;
     if (calls === 1) throw new Error("network flake");
-    return { ok: true, json: async () => ({ output_text: JSON.stringify({ internship: ["改写后的实习"], project: [], skills: [] }) }) };
+    return { ok: true, json: async () => ({ output_text: JSON.stringify({ internship: [["改写后的实习"]], project: [], skills: [] }) }) };
   };
   const { sections: next, meta } = await polishResumeSections({
     jdText: "JD",
@@ -120,7 +123,7 @@ test("润色失败后自动重试一次，第二次成功则采用润色结果",
   });
   assert.equal(calls, 2);
   assert.equal(meta.ok, true);
-  assert.deepEqual(next.internship, ["改写后的实习"]);
+  assert.ok(next.internship[0].includes("改写后的实习"));
 });
 
 test("未配置 LLM 时不走润色", async () => {
