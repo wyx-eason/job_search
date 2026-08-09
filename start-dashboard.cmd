@@ -2,6 +2,7 @@
 rem china-campus-ops dashboard launcher: starts server hidden, survives window close
 setlocal
 set "NODE=C:\Users\A\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
+set "CHROME=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
 set "ROOT=%~dp0"
 cd /d "%ROOT%"
 
@@ -19,5 +20,9 @@ powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='ch
 rem ??? 8787 ?????????????
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":8787.*LISTENING"') do taskkill /F /PID %%p >nul 2>&1
 start "" /b "%NODE%" dashboard\server.mjs > local\dashboard.log 2>&1
-start "" http://127.0.0.1:8787
+if exist "%CHROME%" (
+  start "" "%CHROME%" http://127.0.0.1:8787
+) else (
+  start "" http://127.0.0.1:8787
+)
 echo Dashboard starting: http://127.0.0.1:8787 (log: local\dashboard.log)
