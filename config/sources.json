@@ -6,6 +6,11 @@
     {"id": "campus", "name": "牛客与高校就业网", "type": "interactive-or-public", "enabled": true},
     {"id": "aggregators", "name": "智联、前程无忧、猎聘", "type": "interactive-or-public", "enabled": true},
     {"id": "boss-browser", "name": "BOSS 直聘 Chrome 补充", "type": "interactive", "enabled": true},
-    {"id": "wechat-import", "name": "微信公众号手动导入", "type": "manual", "enabled": true}
+    {"id": "wechat-import", "name": "微信公众号手动导入", "type": "manual", "enabled": true},
+    {"id": "yunjiuye", "name": "云就业高校就业信息网", "type": "public", "enabled": true, "adapter": "yunjiuye"},
+    {"id": "smartcampus", "name": "智慧就业平台招聘公告", "type": "public", "enabled": true, "adapter": "smartcampus"},
+    {"id": "zggqzp", "name": "国企招聘网公告", "type": "public", "enabled": true, "adapter": "zggqzp"},
+    {"id": "qqdocs", "name": "腾讯文档校招内推合集", "type": "public", "enabled": true, "adapter": "qqdocs"},
+    {"id": "yingjiesheng", "name": "应届生求职网校招岗位", "type": "public", "enabled": true, "adapter": "yingjiesheng"}
   ]
 }

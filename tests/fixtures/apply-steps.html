@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>分步申请表</title></head>
+<body>
+  <div id="step1">
+    <label for="name">姓名</label><input id="name" name="name" type="text">
+    <label for="phone">手机号</label><input id="phone" name="phone" type="tel">
+  </div>
+  <div id="step2" hidden>
+    <label for="university">毕业院校</label><input id="university" name="university" type="text">
+    <label for="degree">学历</label><select id="degree" name="degree"><option value="">请选择</option><option value="2">硕士</option></select>
+  </div>
+  <script>
+    setTimeout(() => { document.getElementById("step2").hidden = false; }, 2000);
+  </script>
+</body>
+</html>

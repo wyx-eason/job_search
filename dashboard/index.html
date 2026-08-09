@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>国内校招求职仪表盘</title>
+<style>
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; margin: 0; background: #f5f6f8; color: #222; }
+  header { background: #1f2937; color: #fff; padding: 16px 24px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: #cbd5e1; font-size: 13px; }
+  main { max-width: 1080px; margin: 20px auto; padding: 0 16px 40px; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; flex: 1; min-width: 140px; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: #6b7280; }
+  .card .num { font-size: 26px; font-weight: 600; }
+  section { margin-top: 18px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+  section h2 { margin: 0 0 10px; font-size: 16px; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  li { padding: 9px 0; border-top: 1px solid #f0f0f0; display: flex; justify-content: space-between; gap: 12px; }
+  li:first-child { border-top: none; }
+  .muted { color: #6b7280; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #e0e7ff; color: #3730a3; white-space: nowrap; }
+  .badge.excluded { background: #fee2e2; color: #991b1b; }
+  .badge.needs { background: #fef3c7; color: #92400e; }
+  .danger-btn { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+  .danger-btn:hover { background: #fecaca; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(17, 24, 39, .45); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .modal-mask.show { display: flex; }
+  .modal-panel { background: #fff; width: min(940px, 95vw); height: 92vh; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  .modal-head { padding: 10px 16px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+  .modal-close { cursor: pointer; border: 1px solid #d1d5db; background: #f9fafb; border-radius: 6px; padding: 4px 12px; font-size: 13px; }
+  .modal-close:hover { background: #f3f4f6; }
+  .modal-body { flex: 1; }
+  .modal-body embed { width: 100%; height: 100%; border: 0; background: #fff; }
+  .modal-footer { padding: 10px 16px; border-top: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 8px; }
+  .modal-footer textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; }
+  .modal-footer .footer-row { display: flex; align-items: center; gap: 10px; }
+  .modal-footer .muted { flex: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>国内校招求职仪表盘</h1>
+  <p id="generatedAt">加载中…</p>
+  <p id="applyStatus" class="muted"></p>
+  <p id="applyActions" class="muted"></p>
+</header>
+<main>
+  <div class="stats">
+    <div class="card"><h3>今日新增岗位</h3><div class="num" id="todayNew">-</div></div>
+    <div class="card"><h3>岗位总数</h3><div class="num" id="totalJobs">-</div></div>
+    <div class="card"><h3>已排除岗位</h3><div class="num" id="excluded">-</div></div>
+    <div class="card"><h3>已登记来源</h3><div class="num" id="sourceCount">-</div></div>
+  </div>
+
+  <section><h2>临汾周边</h2><ul id="linfen_area"></ul></section>
+  <section><h2>西安重点</h2><ul id="xian_core"></ul></section>
+  <section><h2>大城市练手</h2><ul id="practice_city"></ul></section>
+  <section><h2>待确认</h2><ul id="needs_confirmation"></ul></section>
+
+  <section>
+    <h2>全部岗位</h2>
+    <div class="filters">
+      <label><input type="checkbox" id="onlyEligible" checked> 只看符合资格</label>
+      <select id="filterCity">
+        <option value="">全部城市</option>
+        <option value="西安">西安</option>
+        <option value="临汾">临汾</option>
+        <option value="其他">其他城市</option>
+      </select>
+      <select id="filterSource"><option value="">全部来源</option></select>
+      <input id="filterKeyword" type="search" placeholder="关键词（公司/岗位）">
+      <input id="filterMinScore" type="number" min="0" placeholder="最低评分">
+      <span id="filterCount" class="muted"></span>
+    </div>
+    <table>
+      <thead><tr><th>公司</th><th>岗位</th><th>城市</th><th>评分</th><th>资格状态</th><th>来源</th><th>链接</th></tr></thead>
+      <tbody id="allJobs"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>投递状态</h2>
+    <div class="stats" id="statusChips"></div>
+    <table>
+      <thead><tr><th>公司</th><th>岗位</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="statusJobs"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>来源健康</h2>
+    <table>
+      <thead><tr><th>名称</th><th>类型</th><th>状态</th></tr></thead>
+      <tbody id="sources"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>已屏蔽公司 <span id="blockedCount" class="muted"></span></h2>
+    <ul id="blockedCompanies"><li class="muted">无</li></ul>
+  </section>
+</main>
+<div class="modal-mask" id="previewModal">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <span>简历预览 <span id="previewPages" class="muted"></span></span>
+      <button class="modal-close" id="previewClose">关闭</button>
+    </div>
+    <div class="modal-body"><embed id="previewEmbed" type="application/pdf"></div>
+    <div class="modal-footer">
+      <textarea id="feedbackInput" rows="2" placeholder="给简历提意见，例如：AI 实习再展开一点；把测试经历放前面；突出 RAG 落地细节…"></textarea>
+      <div class="footer-row">
+        <button class="apply-btn" id="feedbackBtn">提交意见并重新生成</button>
+        <span id="previewStatus" class="muted"></span>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const readJson = async (res) => {
+  try {
+    return await res.json();
+  } catch {
+    const text = await res.text().catch(() => "");
+    return { error: text || `HTTP ${res.status}` };
+  }
+};
+const previewModal = document.getElementById("previewModal");
+const previewEmbed = document.getElementById("previewEmbed");
+const previewPagesEl = document.getElementById("previewPages");
+const previewStatusEl = document.getElementById("previewStatus");
+let previewBtn = null;
+let currentSessionId = null;
+function ensurePreviewButton(packagePath) {
+  const actions = document.getElementById("applyActions");
+  let btn = document.getElementById("previewResumeBtn");
+  if (!btn) {
+    actions.insertAdjacentHTML("afterbegin", '<button class="apply-btn" id="previewResumeBtn">预览简历</button>');
+    btn = document.getElementById("previewResumeBtn");
+    btn.addEventListener("click", () => showPreview(btn.dataset.path || ""));
+  }
+  btn.style.display = packagePath ? "" : "none";
+  btn.dataset.path = packagePath || "";
+  previewBtn = btn;
+}
+function setPreviewTarget(packagePath) {
+  ensurePreviewButton(packagePath);
+}
+function showPreview(packagePath) {
+  if (!packagePath) return;
+  setPreviewTarget(packagePath);
+  previewPagesEl.textContent = "读取页数中…";
+  previewEmbed.src = `/api/package/pdf?packagePath=${encodeURIComponent(packagePath)}`;
+  fetch(`/api/package/meta?packagePath=${encodeURIComponent(packagePath)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((meta) => {
+      previewPagesEl.textContent = meta?.pages
+        ? `共 ${meta.pages} 页`
+        : meta?.hasPdf
+          ? "页数读取失败，以 PDF 查看器为准"
+          : "还没有生成简历";
+    })
+    .catch(() => {
+      previewPagesEl.textContent = "";
+    });
+  previewModal.classList.add("show");
+}
+function hidePreview() {
+  previewModal.classList.remove("show");
+  previewEmbed.removeAttribute("src");
+}
+document.getElementById("previewClose").addEventListener("click", hidePreview);
+previewModal.addEventListener("click", (e) => {
+  if (e.target === previewModal) hidePreview();
+});
+document.getElementById("feedbackBtn").addEventListener("click", async () => {
+  const input = document.getElementById("feedbackInput");
+  const feedback = input.value.trim();
+  if (!feedback) {
+    previewStatusEl.textContent = "请先填写修改意见";
+    return;
+  }
+  if (!currentSessionId) {
+    previewStatusEl.textContent = "没有投递会话，请先在岗位列表点“去投递”";
+    return;
+  }
+  previewStatusEl.textContent = "正在按意见用 LLM 重新生成简历…（约 20-40 秒）";
+  const res = await fetch("/api/apply/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: currentSessionId, feedback })
+  });
+  const regen = await readJson(res);
+  if (!res.ok) {
+    previewStatusEl.textContent = "失败：" + (regen.error || res.status);
+    return;
+  }
+  const polishText = regen.polish?.ok
+    ? `（LLM 润色：${regen.polish.provider}/${regen.polish.model}）`
+    : regen.polish
+      ? `（LLM 润色未生效：${regen.polish.error || "未知"}）`
+      : "";
+  previewStatusEl.textContent = `已重新生成（QA ${regen.qa?.ok ? "通过" : "有问题"}）${polishText}。${regen.uploaded ? "已重新上传。" : "请手动上传简历。"}`;
+  document.getElementById("applyStatus").textContent = `已按你的意见重新生成简历：${regen.packagePath}`;
+  showPreview(regen.packagePath);
+});
+const link = (j) => (j.apply_url || j.posting_url)
+  ? `<a href="${esc(j.apply_url || j.posting_url)}" target="_blank" rel="noopener">申请</a>`
+  : '<span class="muted">无链接</span>';
+const badge = (s) => {
+  if (!s) return "";
+  if (s === "excluded") return '<span class="badge excluded">已排除</span>';
+  if (s === "needs_cohort_confirmation") return '<span class="badge needs">待确认</span>';
+  if (s === "eligible") return '<span class="badge">符合</span>';
+  return `<span class="badge">${esc(s)}</span>`;
+};
+
+async function main() {
+  const data = await (await fetch("/api/dashboard")).json();
+  document.getElementById("generatedAt").textContent = "更新于 " + new Date(data.generatedAt).toLocaleString("zh-CN");
+  document.getElementById("todayNew").textContent = data.todayNew;
+  document.getElementById("totalJobs").textContent = data.totalJobs;
+  document.getElementById("excluded").textContent = data.excluded;
+  document.getElementById("sourceCount").textContent = data.sources.length;
+
+  for (const [pool, emptyText] of [
+    ["linfen_area", "今日无新增"],
+    ["xian_core", "今日无新增"],
+    ["practice_city", "今日无新增"],
+    ["needs_confirmation", "今日无新增"]
+  ]) {
+    const list = data.pools[pool] || [];
+    const el = document.getElementById(pool);
+    if (!list.length) { el.innerHTML = `<li class="muted">${emptyText}</li>`; continue; }
+    el.innerHTML = list.map((j) => `<li><span>${esc(j.company)} · ${esc(j.title)} · ${esc(j.city || "地点未知")}${j.score ? ` · 评分 ${j.score.total}` : ""}</span><span>${link(j)} <button class="apply-btn" data-id="${esc(j.id)}">去投递</button> <button class="danger-btn del-company-btn" data-company="${esc(j.company)}">删除公司</button></span></li>`).join("");
+  }
+
+  const ALL_JOBS = data.jobs;
+  const sourceOptions = [...new Set(ALL_JOBS.map((j) => j.source).filter(Boolean))].sort();
+  document.getElementById("filterSource").innerHTML =
+    '<option value="">全部来源</option>' + sourceOptions.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  const linkType = (j) => (j.source === "yunjiuye" ? "岗位级" : "公司级");
+  function renderJobsTable(list) {
+    document.getElementById("allJobs").innerHTML = list.map((j) =>
+    `<tr><td>${esc(j.company)}</td><td>${esc(j.title)}</td><td>${esc(j.city || "-")}</td><td>${j.score ? j.score.total : "-"}</td><td>${badge(j.eligibility_status)}</td><td>${esc(j.source)}</td><td><span class="muted">[${linkType(j)}]</span> ${link(j)} <button class="apply-btn" data-id="${esc(j.id)}">去投递</button> <button class="danger-btn del-company-btn" data-company="${esc(j.company)}">删除公司</button></td></tr>`
+    ).join("");
+  }
+  function applyFilters() {
+    const onlyEligible = document.getElementById("onlyEligible").checked;
+    const city = document.getElementById("filterCity").value;
+    const source = document.getElementById("filterSource").value;
+    const keyword = document.getElementById("filterKeyword").value.trim().toLowerCase();
+    const minScore = Number(document.getElementById("filterMinScore").value || 0);
+    let list = ALL_JOBS;
+    if (onlyEligible) list = list.filter((j) => j.eligibility_status === "eligible");
+    if (city) {
+      list = list.filter((j) => {
+        const c = j.city || "";
+        return city === "其他" ? !/西安|临汾/.test(c) : c.includes(city);
+      });
+    }
+    if (source) list = list.filter((j) => j.source === source);
+    if (keyword) list = list.filter((j) => `${j.company} ${j.title}`.toLowerCase().includes(keyword));
+    if (minScore > 0) list = list.filter((j) => (j.score?.total || 0) >= minScore);
+    renderJobsTable(list);
+    document.getElementById("filterCount").textContent = `共 ${list.length} 条`;
+    bindApplyButtons();
+  }
+  ["onlyEligible", "filterCity", "filterSource", "filterKeyword", "filterMinScore"].forEach((id) => {
+    document.getElementById(id).addEventListener(id === "filterKeyword" ? "input" : "change", applyFilters);
+  });
+  applyFilters();
+
+  document.getElementById("sources").innerHTML = data.sources.map((s) =>
+    `<tr><td>${esc(s.name)}</td><td>${esc(s.type)}</td><td>${s.enabled ? "已启用" : "已停用"}</td></tr>`
+  ).join("");
+
+  const blockedEl = document.getElementById("blockedCompanies");
+  const blocked = data.blockedCompanies || [];
+  document.getElementById("blockedCount").textContent = blocked.length ? `（${blocked.length} 家）` : "";
+  blockedEl.innerHTML = blocked.length
+    ? blocked.map((b) => `<li><span>${esc(b.name)} <span class="muted">屏蔽于 ${new Date(b.blocked_at).toLocaleString("zh-CN")}</span></span><span><button class="apply-btn restore-company-btn" data-company="${esc(b.name)}">恢复（下次扫描重新加入）</button></span></li>`).join("")
+    : '<li class="muted">无</li>';
+  document.querySelectorAll(".restore-company-btn").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      const status = document.getElementById("applyStatus");
+      if (!confirm(`恢复公司「${btn.dataset.company}」？恢复后需要重新扫描才会把该公司岗位加回来。`)) return;
+      const res = await fetch("/api/companies/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company: btn.dataset.company })
+      });
+      const data2 = await readJson(res);
+      status.textContent = res.ok
+        ? `已恢复「${btn.dataset.company}」（下次扫描会重新加入）。`
+        : "恢复失败：" + (data2.error || res.status);
+      main();
+    })
+  );
+
+  function bindApplyButtons() {
+    document.querySelectorAll(".apply-btn[data-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const status = document.getElementById("applyStatus");
+        status.textContent = "正在打开投递助手…";
+        try {
+          const res = await fetch("/api/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobId: btn.dataset.id })
+          });
+          const data = await readJson(res);
+          if (!res.ok) {
+            status.textContent = "失败：" + (data.error || res.status);
+            return;
+          }
+          const navLog = (data.navigation?.log || []).join("；");
+          const qaText = data.qa ? (data.qa.ok ? "QA 筛查通过" : "QA 有问题：" + (data.qa.issues || []).join("、")) : "";
+          const uploadText = data.uploadedResume ? `简历已自动上传：${data.uploadedFileName || "resume.pdf"}。` : (data.resumeUploadSkipped ? data.resumeUploadSkipped + "。" : "");
+          const packageText = data.packagePath
+            ? `申请包已生成：${data.packagePath}（${data.files.length} 个文件）。`
+            : "公司级岗位：选定具体岗位后会自动生成并上传该岗位的定制简历（当前未生成，避免出现多份简历）。";
+          status.textContent = `已打开投递页，投递会话已建立（正在监听申请表单）。助手会持续监听：登录并进入申请表单后会自动填写并可按岗位重生成简历。${packageText}${qaText ? qaText + "。" : ""}${uploadText}表单结构已自动导出（${data.formFieldsPath}）。自动填写 ${data.filled.length} 项；已跳过 ${data.alreadyFilled || 0} 项已填写字段；敏感字段 ${data.skippedSensitive.length} 项待确认；未知字段 ${data.skippedUnknown.length} 项。${navLog ? "导航：" + navLog + "。" : ""}${data.note || ""}请检查后手动提交，助手不会点提交。`;
+          const actions = document.getElementById("applyActions");
+          actions.innerHTML = `${data.packagePath ? `<button class="apply-btn" id="previewResumeBtn">预览简历</button><button class="apply-btn" id="openPackageBtn">打开申请包目录</button>` : ""}<button class="apply-btn" id="refillBtn">重新填表</button>`;
+          if (data.packagePath) {
+            previewBtn = document.getElementById("previewResumeBtn");
+            previewBtn.addEventListener("click", () => showPreview(previewBtn.dataset.path || data.packagePath));
+            document.getElementById("openPackageBtn").addEventListener("click", async () => {
+              await fetch("/api/open-package", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ packagePath: data.packagePath })
+              });
+            });
+            if (!data.deferResume) showPreview(data.packagePath);
+          }
+          currentSessionId = data.sessionId;
+          document.getElementById("refillBtn").addEventListener("click", async () => {
+            const res = await fetch("/api/apply/refill", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId: data.sessionId })
+            });
+            const refill = await readJson(res);
+            if (!res.ok) { status.textContent = "重新填表失败：" + (refill.error || res.status); return; }
+            status.textContent = `已重新填表：自动填写 ${refill.filled.length} 项；敏感字段 ${refill.skippedSensitive.length} 项待确认；未知字段 ${refill.skippedUnknown.length} 项（如：${refill.skippedUnknown.slice(0, 3).join("、")}）。${refill.note || ""}`;
+          });
+          actions.innerHTML += ` <button class="apply-btn" id="regenBtn">按当前岗位重新生成简历</button>`;
+          document.getElementById("regenBtn").addEventListener("click", async () => {
+            const res = await fetch("/api/apply/regenerate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId: data.sessionId })
+            });
+            const regen = await readJson(res);
+            if (!res.ok) { status.textContent = "重新生成：" + (regen.error || res.status); return; }
+            status.textContent = `已按当前岗位重新生成简历：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploaded ? `已重新上传（${regen.uploadedFileName}）。` : "未找到上传入口，请手动上传。"}`;
+            showPreview(regen.packagePath);
+          });
+          if (window.__applyPoll) clearInterval(window.__applyPoll);
+          let lastShownRegenAt = null;
+          let lastShownAttemptAt = null;
+          window.__applyPoll = setInterval(async () => {
+            const r = await fetch(`/api/apply/status?jobId=${encodeURIComponent(data.sessionId)}`);
+            if (!r.ok) return;
+            const s = await readJson(r);
+            if (s.lastAutoAttempt && s.lastAutoAttempt.at !== lastShownAttemptAt) {
+              lastShownAttemptAt = s.lastAutoAttempt.at;
+              if (s.lastAutoAttempt.ok) {
+                status.textContent = `已自动按当前岗位重新生成简历：${s.lastRegen?.packagePath}（QA ${s.lastRegen?.qa?.ok ? "通过" : "有问题"}）。${s.lastRegen?.uploaded ? `已重新上传（${s.lastRegen?.uploadedFileName}）。` : "请手动上传简历。"}`;
+                if (s.lastRegen?.packagePath) showPreview(s.lastRegen.packagePath);
+              } else {
+                status.textContent = `自动重生成未执行：${s.lastAutoAttempt.reason}。${s.lastWatcherEvent ? "（已检测到" + s.lastWatcherEvent.type + "事件）" : ""}`;
+              }
+            }
+            if (s.lastRegen && s.lastRegen.at !== lastShownRegenAt) {
+              lastShownRegenAt = s.lastRegen.at;
+              status.textContent = `已自动按当前岗位重新生成简历：${s.lastRegen.packagePath}（QA ${s.lastRegen.qa?.ok ? "通过" : "有问题"}）。${s.lastRegen.uploaded ? "已重新上传到表单。" : "请手动上传简历。"}`;
+              if (s.lastRegen.packagePath) showPreview(s.lastRegen.packagePath);
+            }
+          }, 4000);
+        } catch (e) {
+          status.textContent = "失败：" + e.message;
+        }
+      });
+    });
+    document.querySelectorAll(".del-company-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const status = document.getElementById("applyStatus");
+        const company = btn.dataset.company;
+        if (!confirm(`删除公司「${company}」？\n将移除该公司的全部岗位，并加入屏蔽名单（之后扫描不会再加回来）。\n可在下方"已屏蔽公司"中恢复。`)) return;
+        const res = await fetch("/api/companies/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company })
+        });
+        const data2 = await readJson(res);
+        if (!res.ok) {
+          status.textContent = "删除失败：" + (data2.error || res.status);
+          return;
+        }
+        status.textContent = `已删除公司「${company}」：移除 ${data2.deleted} 个岗位，并已加入屏蔽名单。`;
+        main();
+      });
+    });
+  }
+
+  const FLOW = ["discovered", "shortlisted", "resume_generated", "ready_for_review", "applied", "assessment", "interview", "offer"];
+  const TERMINAL = ["rejected", "withdrawn", "expired", "discarded"];
+  const LABELS = {
+    discovered: "已发现", shortlisted: "已入选择", resume_generated: "已生成简历", ready_for_review: "待检查",
+    applied: "已投递", assessment: "测评中", interview: "面试中", offer: "Offer",
+    rejected: "已拒绝", withdrawn: "已撤回", expired: "已过期", discarded: "已丢弃"
+  };
+  const nextStatus = (s) => {
+    const i = FLOW.indexOf(s);
+    return i >= 0 && i < FLOW.length - 1 ? FLOW[i + 1] : null;
+  };
+  async function setStatus(jobId, status) {
+    const statusEl = document.getElementById("applyStatus");
+    const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    });
+    const data = await readJson(res);
+    if (!res.ok) { statusEl.textContent = "状态更新失败：" + (data.error || res.status); return; }
+    statusEl.textContent = "状态已更新：" + (LABELS[data.to] || data.to);
+    main();
+  }
+  document.getElementById("statusChips").innerHTML = Object.entries(data.statusCounts || {})
+    .map(([s, n]) => `<div class="card"><h3>${LABELS[s] || esc(s)}</h3><div class="num">${n}</div></div>`)
+    .join("");
+  document.getElementById("statusJobs").innerHTML = data.jobs.map((j) => {
+    const next = nextStatus(j.status);
+    const buttons = [];
+    if (next) buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="${next}">→ ${LABELS[next]}</button>`);
+    if (!TERMINAL.includes(j.status)) {
+      buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="rejected">拒绝</button>`);
+      buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="withdrawn">撤回</button>`);
+    }
+    return `<tr><td>${esc(j.company)}</td><td>${esc(j.title)}</td><td>${LABELS[j.status] || esc(j.status)}</td><td>${buttons.join(" ")}</td></tr>`;
+  }).join("");
+  document.querySelectorAll("[data-set]").forEach((btn) =>
+    btn.addEventListener("click", () => setStatus(btn.dataset.set, btn.dataset.status))
+  );
+}
+
+main().catch((e) => { document.getElementById("generatedAt").textContent = "加载失败：" + e.message; });
+</script>
+</body>
+</html>

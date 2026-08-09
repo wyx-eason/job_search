@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const root = path.resolve(import.meta.dirname, "..");
 const profileDir = path.resolve(root, "../profile");
@@ -32,28 +33,38 @@ function extract(source, file) {
 
 function yamlQuote(value) { return JSON.stringify(value); }
 
-function writeFacts(facts) {
+function writeFacts(facts, outputDir) {
   const lines = ["# 由 profile 中的 LaTeX 简历生成；所有条目需用户确认后才能进入定制简历。", "facts:"];
   for (const fact of facts) {
     lines.push(`  - id: ${fact.id}`, `    type: ${fact.type}`, `    claim: ${yamlQuote(fact.claim)}`, `    source: ${fact.source}`, `    status: unverified`);
     if (fact.context) lines.push(`    context: ${yamlQuote(fact.context)}`);
   }
-  fs.writeFileSync(path.join(root, "candidate", "facts.yml"), `${lines.join("\n")}\n`, "utf8");
+  fs.writeFileSync(path.join(outputDir, "facts.yml"), `${lines.join("\n")}\n`, "utf8");
 }
 
-function writeQuestions(facts) {
+function writeQuestions(facts, outputDir) {
   const questions = ["# 待确认候选人资料", "", "以下内容由原始简历提取，尚未自动视为已掌握。请逐项确认使用深度、具体动作和成果证据。", "", "## 必须确认", "", "- 论文目前是已发表、录用，还是投稿后小修中？", "- 博世 AI 辅助标定工具中，你具体负责了哪些模块？是否有可公开指标？", "- RAG、向量数据库、BM25、Agent 框架分别实际使用到什么程度？", "- 哪些技能只能写“了解”或“基础实践”？", "- 霍莱沃实习中的雷达数据验证和性能测试是否有规模、效率或缺陷指标？", "", "## 自动提取条目", ""];
   for (const fact of facts.filter((v) => v.type !== "section").slice(0, 30)) questions.push(`- [ ] ${fact.id}: ${fact.claim}`);
-  fs.writeFileSync(path.join(root, "candidate", "pending-questions.md"), `${questions.join("\n")}\n`, "utf8");
+  fs.writeFileSync(path.join(outputDir, "pending-questions.md"), `${questions.join("\n")}\n`, "utf8");
 }
 
-const allFacts = [];
-for (const file of files) {
-  const fullPath = path.join(profileDir, file);
-  if (!fs.existsSync(fullPath)) throw new Error(`缺少原始简历: ${fullPath}`);
-  allFacts.push(...extract(fs.readFileSync(fullPath, "utf8"), file));
+export function runImport({ profileDir, outputDir }) {
+  const allFacts = [];
+  for (const file of files) {
+    const fullPath = path.join(profileDir, file);
+    if (!fs.existsSync(fullPath)) throw new Error(`缺少原始简历: ${fullPath}`);
+    allFacts.push(...extract(fs.readFileSync(fullPath, "utf8"), file));
+  }
+  writeFacts(allFacts, outputDir);
+  fs.writeFileSync(path.join(outputDir, "skills.yml"), "# 技能必须经过用户确认；导入阶段统一为 unverified。\nskills: []\n", "utf8");
+  writeQuestions(allFacts, outputDir);
+  return { files, facts: allFacts.length, status: "unverified", profileDir };
 }
-writeFacts(allFacts);
-fs.writeFileSync(path.join(root, "candidate", "skills.yml"), "# 技能必须经过用户确认；导入阶段统一为 unverified。\nskills: []\n", "utf8");
-writeQuestions(allFacts);
-console.log(JSON.stringify({ files, facts: allFacts.length, status: "unverified", profileDir }, null, 2));
+
+if (path.resolve(process.argv[1] || "") === path.resolve(fileURLToPath(import.meta.url))) {
+  const result = runImport({
+    profileDir: path.resolve(root, "../profile"),
+    outputDir: path.join(root, "candidate")
+  });
+  console.log(JSON.stringify(result, null, 2));
+}

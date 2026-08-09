@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>测试申请表</title></head>
+<body>
+  <form id="applyForm">
+    <label for="name">姓名</label>
+    <input id="name" name="name" type="text">
+
+    <label for="phone">手机号</label>
+    <input id="phone" name="phone" type="tel">
+
+    <label for="email">邮箱</label>
+    <input id="email" name="email" type="email">
+
+    <label for="university">毕业院校</label>
+    <input id="university" name="university" type="text">
+
+    <label for="degree">学历</label>
+    <select id="degree" name="degree">
+      <option value="">请选择</option>
+      <option value="1">本科</option>
+      <option value="2">硕士</option>
+      <option value="3">博士</option>
+    </select>
+
+    <label for="major">专业</label>
+    <input id="major" name="major" type="text">
+
+    <label for="graduation">毕业时间</label>
+    <input id="graduation" name="graduation" type="month">
+
+    <label for="idcard">身份证号</label>
+    <input id="idcard" name="idcard" type="text">
+
+    <label for="political">政治面貌</label>
+    <input id="political" name="political" type="text">
+
+    <label for="salary">期望薪资</label>
+    <input id="salary" name="salary" type="text">
+
+    <label for="address">详细地址</label>
+    <input id="address" name="address" type="text">
+
+    <button type="submit">提交</button>
+  </form>
+  <script>
+    document.getElementById("applyForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      window.__submitted = true;
+    });
+  </script>
+</body>
+</html>

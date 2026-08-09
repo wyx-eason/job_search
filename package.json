@@ -8,6 +8,7 @@
     "validate": "node lib/validate-candidate.mjs",
     "import:profile": "node scripts/import-profile.mjs",
     "scan": "node scripts/daily-scan.mjs",
-    "report": "node scripts/report.mjs"
+    "report": "node scripts/report.mjs",
+    "dashboard": "node dashboard/server.mjs"
   }
 }

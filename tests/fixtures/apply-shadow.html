@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Shadow DOM 表单</title></head>
+<body>
+  <custom-form></custom-form>
+  <script>
+    class CustomForm extends HTMLElement {
+      connectedCallback() {
+        const shadow = this.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+          <label for="name">姓名</label><input id="name" name="name" type="text">
+          <label for="phone">手机号</label><input id="phone" name="phone" type="tel">
+        `;
+      }
+    }
+    customElements.define("custom-form", CustomForm);
+  </script>
+</body>
+</html>

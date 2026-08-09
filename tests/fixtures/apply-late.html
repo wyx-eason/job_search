@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>延迟出现的表单</title></head>
+<body>
+  <h1>公司岗位列表</h1>
+  <p>请先登录并选择岗位</p>
+  <div id="form" hidden>
+    <label for="name">姓名</label><input id="name" name="name" type="text">
+    <label for="phone">手机号</label><input id="phone" name="phone" type="tel">
+  </div>
+  <script>
+    setTimeout(() => { document.getElementById("form").hidden = false; }, 4000);
+  </script>
+</body>
+</html>

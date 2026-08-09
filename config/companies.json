@@ -1,0 +1,266 @@
+{
+  "updatedAt": "2026-08-07",
+  "note": "企业/来源注册表：分四组维护，seed 里的 jobUrl 是已确认可抓取的真实岗位页",
+  "seeds": {
+    "yunjiuyeJobUrls": [
+      "https://job.xpu.edu.cn/detail/job?id=3047001",
+      "http://gzzyy.bysjy.com.cn/detail/job?id=2745424&menu_id="
+    ],
+    "smartcampusAnnounceUrls": [
+      "https://24365.cq.smartedu.cn/campus/view/id/731143",
+      "https://www.cqbys.com/teachin/view/id/132152"
+    ],
+    "zggqzpAnnounceUrls": [
+      "https://m.zggqzp.com/2026/zpxx_0723/404359.html"
+    ],
+    "qqdocsSheets": [
+      {
+        "docUrl": "https://docs.qq.com/smartsheet/DY3pHYkNvb0ZRSHdi",
+        "tabId": "BB08J2",
+        "tabName": "实习内推汇总"
+      },
+      {
+        "docUrl": "https://docs.qq.com/smartsheet/DY3pHYkNvb0ZRSHdi",
+        "tabId": "t0gmEC",
+        "tabName": "秋招内推汇总"
+      }
+    ],
+    "yingjieshengJobUrls": [
+      "https://m.yingjiesheng.com/job-008-025-142.html",
+      "https://m.yingjiesheng.com/job-008-025-141.html",
+      "https://m.yingjiesheng.com/job-008-025-143.html",
+      "https://m.yingjiesheng.com/job-008-025-543.html",
+      "https://m.yingjiesheng.com/job-008-025-542.html"
+    ]
+  },
+  "groups": [
+    {
+      "id": "linfen-area",
+      "name": "临汾周边企业",
+      "companies": [
+        {
+          "id": "citic-mechatronics",
+          "name": "中信机电制造集团",
+          "city": "侯马",
+          "industry": "智能制造/央企",
+          "careersUrl": "https://job.xpu.edu.cn/detail/company?company_id=252280",
+          "sourceType": "university-jobs",
+          "note": "中信集团一级子公司，先进智造板块"
+        },
+        {
+          "id": "huaxiang-group",
+          "name": "山西华翔集团",
+          "city": "洪洞",
+          "industry": "铸造/制造",
+          "careersUrl": "http://rsj.linfen.gov.cn/contents/808/978.html",
+          "sourceType": "government",
+          "note": "临汾人社局发布，机械技术员等岗位"
+        },
+        {
+          "id": "shanxi-jiaokong",
+          "name": "山西交控集团",
+          "city": "太原（覆盖临汾等11市）",
+          "industry": "交通/国企",
+          "careersUrl": "https://www.nowcoder.com/enterprise/28807",
+          "sourceType": "interactive",
+          "note": "2026春招曾发布，2027届待更新"
+        },
+        {
+          "id": "weining-health",
+          "name": "卫宁健康",
+          "city": "太原/临汾等山西11市",
+          "industry": "医疗信息化",
+          "careersUrl": "https://job.xpu.edu.cn/detail/job?id=3047001",
+          "sourceType": "university-jobs",
+          "note": "27届实施工程师（技术专家方向），已接入云就业适配器"
+        }
+      ]
+    },
+    {
+      "id": "xian",
+      "name": "西安重点企业/研究所",
+      "companies": [
+        {
+          "id": "hesai",
+          "name": "禾赛科技",
+          "city": "西安",
+          "industry": "激光雷达/智驾",
+          "careersUrl": "https://m.zggqzp.com/2026/zpxx_0723/404359.html",
+          "sourceType": "official-announce",
+          "note": "2027届校招提前批（上海/杭州基地），截止2026-08-31，已接入国企招聘网公告适配器"
+        },
+        {
+          "id": "sungrow",
+          "name": "阳光电源",
+          "city": "合肥/西安等",
+          "industry": "新能源/电力电子",
+          "careersUrl": "https://24365.cq.smartedu.cn/campus/view/id/731143",
+          "sourceType": "university-jobs",
+          "note": "2027届全球校招提前批，智慧就业平台公告（当前快照已过期，待更新种子）"
+        },
+        {
+          "id": "cetc",
+          "name": "中国电科（14所/29所等）",
+          "city": "西安",
+          "industry": "军工电子/央企",
+          "careersUrl": "https://www.cetc.com.cn",
+          "sourceType": "official",
+          "note": "2027届提前批面向硕博"
+        },
+        {
+          "id": "hikvision",
+          "name": "海康威视",
+          "city": "西安",
+          "industry": "安防/AI",
+          "careersUrl": "https://campushr.hikvision.com",
+          "sourceType": "official",
+          "note": "2027超新星实习生可转正，西工大就业网发布"
+        },
+        {
+          "id": "caep-ieee",
+          "name": "中国工程物理研究院电子工程研究所",
+          "city": "西安（宣讲）",
+          "industry": "科研院所",
+          "careersUrl": "https://job.xidian.edu.cn/teachin/index",
+          "sourceType": "university-jobs",
+          "note": "2027届提前批招录宣讲会"
+        },
+        {
+          "id": "xian-microelectronics",
+          "name": "西安微电子技术研究所",
+          "city": "西安",
+          "industry": "航天微电子/集成电路",
+          "careersUrl": "https://www.cqbys.com/teachin/view/id/132152",
+          "sourceType": "university-jobs",
+          "note": "2027届提前批招聘，首年35-50万，已接入智慧就业平台适配器"
+        },
+        {
+          "id": "yuntianfei",
+          "name": "云天励飞",
+          "city": "西安",
+          "industry": "AI推理芯片",
+          "careersUrl": "https://m.yingjiesheng.com/job-008-025-142.html",
+          "sourceType": "aggregator",
+          "note": "2027届AI建模/核设计/AI开发工程师，40万元/年，已接入应届生求职网适配器"
+        },
+        {
+          "id": "zhaoxin",
+          "name": "兆芯",
+          "city": "西安",
+          "industry": "芯片设计/国产CPU",
+          "careersUrl": "http://campus.51job.com/zhaoxin2027",
+          "sourceType": "aggregator",
+          "note": "2027届校园招聘，架构/ASIC/验证/系统建模等10个岗位（上海/北京/西安）"
+        },
+        {
+          "id": "hongqing",
+          "name": "蓝箭鸿擎",
+          "city": "西安",
+          "industry": "商业航天/卫星",
+          "careersUrl": "https://m.yingjiesheng.com/job-008-025-542.html",
+          "sourceType": "aggregator",
+          "note": "2027届全球校招，姿轨控/星载软件/AI软件算法等岗位，招聘专业含控制工程与科学"
+        }
+      ]
+    },
+    {
+      "id": "energy-soe",
+      "name": "全国能源央企（山西有基地）",
+      "companies": [
+        {
+          "id": "chnenergy",
+          "name": "国家能源集团",
+          "city": "全国含山西",
+          "industry": "能源/央企",
+          "careersUrl": "http://zhaopin.chnenergy.com.cn",
+          "sourceType": "official",
+          "note": "81家子分公司生产/科研/管理岗，官网待核实"
+        },
+        {
+          "id": "datang",
+          "name": "中国大唐集团",
+          "city": "全国含山西",
+          "industry": "电力/央企",
+          "careersUrl": "https://www.cdtrczp.com",
+          "sourceType": "official",
+          "note": "2027届优才提前批+秋季统招"
+        },
+        {
+          "id": "huaneng",
+          "name": "中国华能集团",
+          "city": "全国含山西",
+          "industry": "电力/央企",
+          "careersUrl": "https://zhaopin.chng.com.cn",
+          "sourceType": "official",
+          "note": "2027届校招已启动"
+        },
+        {
+          "id": "fenjiu",
+          "name": "山西杏花村汾酒集团",
+          "city": "汾阳",
+          "industry": "消费品/国企",
+          "careersUrl": "https://www.fenjiu.com.cn",
+          "sourceType": "official",
+          "note": "2026届已招，2027届待发布"
+        },
+        {
+          "id": "duoyi",
+          "name": "多益网络",
+          "city": "广州/武汉/苏州/杭州",
+          "industry": "游戏/软件",
+          "careersUrl": "http://gzzyy.bysjy.com.cn/detail/job?id=2745424&menu_id=",
+          "sourceType": "university-jobs",
+          "note": "2027届校招秋季提前批，已接入云就业适配器"
+        }
+      ]
+    },
+    {
+      "id": "platforms",
+      "name": "公开平台/高校就业网",
+      "sources": [
+        {
+          "id": "yunjiuye",
+          "name": "云就业高校就业信息网",
+          "type": "public",
+          "url": "https://job.xpu.edu.cn",
+          "note": "服务端渲染，已接入适配器，真实岗位入库"
+        },
+        {
+          "id": "iguopin",
+          "name": "国聘网",
+          "type": "interactive",
+          "url": "https://www.iguopin.com",
+          "note": "纯JS应用，需浏览器或接口研究"
+        },
+        {
+          "id": "ncss",
+          "name": "国家大学生就业服务平台",
+          "type": "interactive",
+          "url": "https://www.ncss.cn",
+          "note": "需学信网账号登录"
+        },
+        {
+          "id": "nowcoder",
+          "name": "牛客网",
+          "type": "interactive",
+          "url": "https://www.nowcoder.com",
+          "note": "纯JS应用，职位数据接口待研究"
+        },
+        {
+          "id": "niuqizp",
+          "name": "牛企招聘校招汇总（临汾）",
+          "type": "browser",
+          "url": "https://campus.niuqizp.com",
+          "note": "直接抓取被拦截，需浏览器辅助"
+        },
+        {
+          "id": "linfen-rsj",
+          "name": "临汾市人社局国企招聘公告",
+          "type": "public",
+          "url": "http://rsj.linfen.gov.cn",
+          "note": "国企招聘公告发布渠道"
+        }
+      ]
+    }
+  ]
+}

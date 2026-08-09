@@ -44,3 +44,9 @@ CREATE TABLE IF NOT EXISTS applications (
   applied_at TEXT,
   FOREIGN KEY (job_id) REFERENCES jobs(id)
 );
+
+CREATE TABLE IF NOT EXISTS blocked_companies (
+  name TEXT PRIMARY KEY,
+  name_normalized TEXT NOT NULL,
+  blocked_at TEXT NOT NULL
+);

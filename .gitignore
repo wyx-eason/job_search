@@ -9,7 +9,10 @@ candidate/autofill.yml
 candidate/facts.yml
 candidate/skills.yml
 candidate/pending-questions.md
+candidate/form-values.yml
+candidate/interview-defense-*.md
 *.log
 .env
 .env.*
 !\.env.example
+config/llm.json

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>千里科技校园招聘</title></head>
+<body>
+  <input class="op-search-input" placeholder="输入职位关键字">
+  <div id="results" hidden>
+    <a id="card1" href="#/job/abc1">自动驾驶算法工程师 北京市</a>
+    <a id="card2" href="#/job/abc2">感知算法工程师 上海市</a>
+    <a id="card3" href="#/job/abc3">机器人规控算法工程师 深圳市</a>
+  </div>
+  <div id="detail" hidden>
+    <h2 id="jobTitle"></h2>
+    <button id="applyBtn">立即投递</button>
+  </div>
+  <div id="form" hidden>
+    <label for="name">姓名</label><input id="name" name="name" type="text">
+    <label for="phone">手机号</label><input id="phone" name="phone" type="tel">
+  </div>
+  <script>
+    const q = (s) => document.querySelector(s);
+    q("input").addEventListener("keydown", (e) => { if (e.key === "Enter") q("#results").hidden = false; });
+    q("#card1").addEventListener("click", (e) => { e.preventDefault(); q("#jobTitle").textContent = "自动驾驶算法工程师"; q("#detail").hidden = false; });
+    q("#card2").addEventListener("click", (e) => { e.preventDefault(); q("#jobTitle").textContent = "感知算法工程师"; q("#detail").hidden = false; });
+    q("#card3").addEventListener("click", (e) => { e.preventDefault(); q("#jobTitle").textContent = "机器人规控算法工程师"; q("#detail").hidden = false; });
+    q("#applyBtn").addEventListener("click", () => { q("#form").hidden = false; });
+  </script>
+</body>
+</html>

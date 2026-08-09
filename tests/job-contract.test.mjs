@@ -7,12 +7,19 @@ const now = new Date("2026-08-01T00:00:00Z");
 test("2027 届正式校招和提前批通过", () => {
   assert.equal(classifyEligibility(normalizeJob({ title: "AI 应用工程师", description: "2027 届秋招" }), now).status, "eligible");
   assert.equal(classifyEligibility(normalizeJob({ title: "ADAS 提前批", campus_year: 2027 }), now).status, "eligible");
+  assert.equal(classifyEligibility(normalizeJob({ title: "算法工程师", employment_type: "27届秋招提前批" }), now).status, "eligible");
+  assert.equal(classifyEligibility(normalizeJob({ title: "研发工程师", description: "面向27届应届生" }), now).status, "eligible");
 });
 
 test("实习、社招和过期岗位排除", () => {
   assert.equal(classifyEligibility(normalizeJob({ title: "算法实习生", description: "2027 届招聘" }), now).status, "excluded");
   assert.equal(classifyEligibility(normalizeJob({ title: "高级控制工程师", description: "社会招聘，3 年经验" }), now).status, "excluded");
   assert.equal(classifyEligibility(normalizeJob({ title: "控制工程师", description: "2027 届秋招", deadline: "2026-07-01" }), now).status, "excluded");
+});
+
+test("JD 提到实习经验但标题无实习的 2027 届岗位判为符合", () => {
+  const result = classifyEligibility(normalizeJob({ title: "实施工程师", description: "2027 届应届毕业生，有相关实习经验者优先" }), now);
+  assert.equal(result.status, "eligible");
 });
 
 test("只有应届生字样时进入待确认", () => {
