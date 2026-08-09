@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildClassicResumeHtml, parseEducation, splitRoleLine } from "../lib/resume-classic.mjs";
+import { buildClassicResumeHtml, parseEducation, splitRoleLine, sanitizeEntryHead } from "../lib/resume-classic.mjs";
 
 const candidate = {
   name: "王奕迅",
@@ -84,4 +84,11 @@ test("splitRoleLine 切分角色/部门/技术栈", () => {
   assert.equal(fullWidth.role, "AI 应用开发实习生");
   assert.equal(fullWidth.dept, "智驾匹配部门");
   assert.equal(fullWidth.tech, "Python, LLM, RAG");
+});
+
+test("sanitizeEntryHead 允许改时间但阻止改公司或丢失日期", () => {
+  const original = "博世 (Bosch) · 苏州 2026.03 -- 至今。";
+  assert.equal(sanitizeEntryHead("博世 (Bosch) · 苏州 2026.04 -- 至今", original), "博世 (Bosch) · 苏州 2026.04 -- 至今");
+  assert.equal(sanitizeEntryHead("特斯拉 · 上海 2026.04 -- 至今", original), original);
+  assert.equal(sanitizeEntryHead("博世 (Bosch) · 苏州", original), original);
 });

@@ -30,6 +30,38 @@ test("润色提示包含用户修改意见", () => {
   assert.match(prompt, /禁止虚构/);
 });
 
+test("用户反馈修改实习时间时，新标题时间生效且公司保持不变", async () => {
+  const sections = {
+    education: [],
+    internship: ["博世 (Bosch) · 苏州 2026.03 -- 至今。AI 应用开发实习生｜智驾匹配部门｜Python, LLM。设计 RAG 检索模块。"],
+    project: [],
+    skills: [],
+    honors: [],
+    other: []
+  };
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({
+      output_text: JSON.stringify({
+        internship: [{ title: "博世 (Bosch) · 苏州 2026.04 -- 至今", bullets: ["改写后的要点"] }],
+        project: [],
+        skills: []
+      })
+    })
+  });
+  const { sections: next, meta } = await polishResumeSections({
+    jdText: "JD",
+    sections,
+    config: { apiKey: "k", baseUrl: "https://api.deepseek.com/v1", model: "m", apiStyle: "responses" },
+    userFeedback: "把博世实习时间改为 2026.04 -- 至今",
+    fetchImpl
+  });
+  assert.equal(meta.ok, true);
+  assert.ok(next.internship[0].includes("2026.04 -- 至今"), "时间应被修改");
+  assert.ok(next.internship[0].includes("博世 (Bosch) · 苏州"), "公司保持不变");
+  assert.ok(next.internship[0].includes("改写后的要点"));
+});
+
 test("润色成功时替换实习/项目/技能板块并保留教育荣誉", async () => {
   const sections = {
     education: ["西安电子科技大学 硕士"],
