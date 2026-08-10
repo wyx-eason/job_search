@@ -46,12 +46,16 @@ export function createDashboardServer(options = {}) {
           return { skipped: "10 秒内不重复自动生成" };
         }
       }
-      const text = await getPageInnerText(session.page);
-      // 手动点击/提交意见 = 用户明确要求重做，跳过“JD 未变化/同一岗位”类防重复限制；
+      const activePage = session.latestPage || session.page;
+      const text = await getPageInnerText(activePage);
+      // 手动点击/提交意见 = 用户明确要求重做，跳过“JD 未变化”类防重复限制；
       // JD 取页面实时内容，页面里没有就复用上次成功生成时的 JD，保证预览丢失后仍可重生成
       const force = !auto;
       const jdText = extractJdFromPageText(text) || session.lastJdText || session.job.jd_text || "";
-      const guard = shouldAutoRegenerate({ lastRegen: session.lastRegen, jdText, url: session.page.url(), requireMarkers: !auto, force });
+      // 自动与普通手动重生成都要求页面是真实岗位详情（带 JD 标记），
+      // 避免把内推页/登录页/列表页的文字当 JD；提交意见的反馈模式允许复用上次 JD
+      const requireMarkers = !session.feedback;
+      const guard = shouldAutoRegenerate({ lastRegen: session.lastRegen, jdText, url: activePage.url(), requireMarkers, force });
       if (!guard.ok) {
         if (auto) session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: guard.reason };
         return { skipped: guard.reason };
@@ -64,14 +68,14 @@ export function createDashboardServer(options = {}) {
       };
       const pkg = await generateApplicationPackage({ job: regenJob, root, userFeedback: session.feedback || "" });
       const uploadPdf = prepareUploadResume(pkg.packagePath, regenJob.company, regenJob.title_raw);
-      const uploaded = await uploadResumeToForm(session.page, uploadPdf);
+      const uploaded = await uploadResumeToForm(activePage, uploadPdf);
       session.resumePdfPath = uploadPdf;
       session.lastRegen = {
         at: new Date().toISOString(),
-        url: session.page.url(),
+        url: activePage.url(),
         jdText,
         jdTextNorm: jdText.replace(/\s+/g, ""),
-        urlKey: urlKey(session.page.url()),
+        urlKey: urlKey(activePage.url()),
         packagePath: pkg.packagePath,
         qa: pkg.qa,
         polish: pkg.polish || null,
@@ -83,7 +87,7 @@ export function createDashboardServer(options = {}) {
       if (auto) session.autoRegenCount = (session.autoRegenCount || 0) + 1;
       session.lastAutoAttempt = { at: new Date().toISOString(), ok: true, reason: "ok" };
       if (uploaded) {
-        await showBanner(session.page, `✓ 简历已按当前岗位重新生成并上传：${path.basename(uploadPdf)}（QA ${pkg.qa?.ok ? "通过" : "有问题"}）`);
+        await showBanner(activePage, `✓ 简历已按当前岗位重新生成并上传：${path.basename(uploadPdf)}（QA ${pkg.qa?.ok ? "通过" : "有问题"}）`);
       }
       return session.lastRegen;
     } finally {
@@ -185,9 +189,10 @@ export function createDashboardServer(options = {}) {
             headless: false,
             resumePdfPath,
             onFieldsChange: (fields) => writeFields(fields),
-            onJobDetail: () => {
+            onJobDetail: ({ page: detailPage } = {}) => {
               const session = applySessions.get(job.id) || assistant;
               if (session) {
+                if (detailPage && !detailPage.isClosed()) session.latestPage = detailPage;
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "jobDetail" };
                 regenerateForCurrentJob(session, { auto: true }).catch(() => {});
               }
@@ -242,7 +247,7 @@ export function createDashboardServer(options = {}) {
           res.end(JSON.stringify({ error: "没有打开的投递会话，请重新点击去投递" }));
           return;
         }
-        const result = await autofillApplyForm(session.page, loadCandidateAutofill(), { resumePdfPath: session.resumePdfPath, formValues: loadCompleteFormValues() });
+        const result = await autofillApplyForm(session.latestPage || session.page, loadCandidateAutofill(), { resumePdfPath: session.resumePdfPath, formValues: loadCompleteFormValues() });
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
         res.end(JSON.stringify(result));
         return;

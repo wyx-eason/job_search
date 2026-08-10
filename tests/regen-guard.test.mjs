@@ -54,6 +54,8 @@ test("force 模式（用户提交意见）绕过 JD 未变化与同一岗位限�
   assert.equal(forced.ok, true);
   const normal = shouldAutoRegenerate({ lastRegen, jdText: jd, url: "https://app.mokahr.com/x#/job/uuid/apply" });
   assert.equal(normal.ok, false);
-  const forcedList = shouldAutoRegenerate({ lastRegen: null, jdText: "算法类、研发工程类等 内推码：X", url: "https://app.mokahr.com/x#/jobs", force: true });
+  const forcedList = shouldAutoRegenerate({ lastRegen: null, jdText: "算法类、研发工程类等 内推码：X", url: "https://app.mokahr.com/x#/jobs", force: true, requireMarkers: false });
   assert.equal(forcedList.ok, true);
+  const noMarkers = shouldAutoRegenerate({ lastRegen: null, jdText: "内推邀请函 姓名 手机 邮箱 验证码", url: "https://xiaozhao.leihuo.netease.com/neitui", force: true });
+  assert.equal(noMarkers.ok, false);
 });
