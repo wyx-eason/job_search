@@ -178,6 +178,30 @@ test("持续监听器在表单延迟出现后自动填写", async (t) => {
   assert.equal(await page.inputValue("#phone"), "13800000000");
 });
 
+test("监听器识别非 ATS 岗位详情页（含 JD 标记）并触发重生成", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href);
+  let fired = 0;
+  const watcher = startFormWatcher({
+    page,
+    candidate: loadCandidateAutofill(),
+    onFieldsChange: () => {},
+    onJobDetail: () => { fired++; },
+    onApplyForm: () => {},
+    pollIntervalMs: 300,
+    maxPolls: 4
+  });
+  await page.waitForTimeout(1600);
+  watcher.stop();
+  assert.ok(fired >= 1, "应识别 JD 详情页并触发重生成");
+});
+
 test("已填写字段不被覆盖，重复扫描不重复填写", async (t) => {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
   const context = await chromium.launchPersistentContext(profileDir, {

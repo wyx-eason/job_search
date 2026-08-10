@@ -20,14 +20,13 @@ test("JD 未变化不重复生成", () => {
   assert.match(r.reason, /JD 未变化/);
 });
 
-test("同一岗位 URL 不重复生成", () => {
+test("SPA 同 URL 切换岗位（JD 变化）允许重新生成", () => {
   const r = shouldAutoRegenerate({
-    lastRegen: { jdTextNorm: "旧", urlKey: urlKey("https://app.mokahr.com/x#/job/uuid") },
+    lastRegen: { jdTextNorm: "旧JD", urlKey: urlKey("https://xiaozhao.leihuo.netease.com/neitui/#/job/1") },
     jdText: jd,
-    url: "https://app.mokahr.com/x#/job/uuid/apply?share=1"
+    url: "https://xiaozhao.leihuo.netease.com/neitui/#/job/1"
   });
-  assert.equal(r.ok, false);
-  assert.match(r.reason, /同一岗位/);
+  assert.equal(r.ok, true);
 });
 
 test("切换不同岗位立即允许重新生成（不受时间冷却影响）", () => {
