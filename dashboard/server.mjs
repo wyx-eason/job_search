@@ -11,6 +11,7 @@ import { transitionStatus, statusLabel } from "../lib/application-tracker.mjs";
 import { extractJdFromPageText, extractJobTitleFromPageText, enrichJobJdWithBrowser } from "../lib/jd-enricher.mjs";
 import { generateApplicationPackage } from "../lib/application-generator.mjs";
 import { shouldAutoRegenerate, urlKey } from "../lib/regen-guard.mjs";
+import { isJobDetailPageText } from "../lib/ats-navigator.mjs";
 import { shouldDeferResume } from "../lib/ats-navigator.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -55,7 +56,7 @@ export function createDashboardServer(options = {}) {
       // 自动与普通手动重生成都要求页面是真实岗位详情（带 JD 标记），
       // 避免把内推页/登录页/列表页的文字当 JD；提交意见的反馈模式允许复用上次 JD
       const requireMarkers = !session.feedback;
-      const guard = shouldAutoRegenerate({ lastRegen: session.lastRegen, jdText, url: activePage.url(), requireMarkers, force });
+      const guard = shouldAutoRegenerate({ lastRegen: session.lastRegen, jdText, url: activePage.url(), requireMarkers, force, detailOk: isJobDetailPageText(text) });
       if (!guard.ok) {
         if (auto) session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: guard.reason };
         return { skipped: guard.reason };

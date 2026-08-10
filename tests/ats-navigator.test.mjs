@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
-import { pickKeyword, detectAts, navigateToApply, isJobDetailUrl, hasSingleRole, shouldDeferResume, cleanJobTitleForFileName, looksLikeJobDetailText } from "../lib/ats-navigator.mjs";
+import { pickKeyword, detectAts, navigateToApply, isJobDetailUrl, hasSingleRole, shouldDeferResume, cleanJobTitleForFileName, looksLikeJobDetailText, isJobDetailPageText } from "../lib/ats-navigator.mjs";
 import { autofillApplyForm, loadCandidateAutofill } from "../lib/apply-assistant.mjs";
 
 const config = JSON.parse(fs.readFileSync(path.resolve("config/apply.json"), "utf8"));
@@ -52,6 +52,13 @@ test("非 ATS 页面含 JD 标记时也能识别为岗位详情", () => {
   assert.equal(looksLikeJobDetailText("岗位要求：熟悉 C++、Python，有运动规划经验者优先。"), true);
   assert.equal(looksLikeJobDetailText("工作内容：负责机器人控制算法开发。"), true);
   assert.equal(looksLikeJobDetailText("技术、游戏策划、艺术/设计、人工智能、综合"), false);
+});
+
+test("列表页（在招N人/全部职位）不会被误判为岗位详情", () => {
+  const listPage = "在招20人 筛选 工作地点 上海市 工作职责\n我们是vivo后端团队，致力于为5亿+vivo用户提供极致的互联网软件产品体验。";
+  assert.equal(isJobDetailPageText(listPage), false);
+  const detailPage = "机器人算法工程师（规划/控制方向）\n岗位职责：负责机器人运动规划与控制算法开发。\n任职要求：熟悉 C++、Python、ROS。";
+  assert.equal(isJobDetailPageText(detailPage), true);
 });
 
 test("自动导航：搜索岗位→点卡片→点立即投递→表单出现后自动填写", async (t) => {

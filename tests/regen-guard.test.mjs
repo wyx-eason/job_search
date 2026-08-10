@@ -59,3 +59,15 @@ test("force 模式（用户提交意见）绕过 JD 未变化与同一岗位限�
   const noMarkers = shouldAutoRegenerate({ lastRegen: null, jdText: "内推邀请函 姓名 手机 邮箱 验证码", url: "https://xiaozhao.leihuo.netease.com/neitui", force: true });
   assert.equal(noMarkers.ok, false);
 });
+
+test("detailOk 为 false（列表页）时即使 force 也不重新生成", () => {
+  const r = shouldAutoRegenerate({
+    lastRegen: null,
+    jdText: "工作职责：我们是vivo后端团队……",
+    url: "https://hr-campus.vivo.com/campus/jobs",
+    force: true,
+    detailOk: false
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /不是具体岗位详情/);
+});
