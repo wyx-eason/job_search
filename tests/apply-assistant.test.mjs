@@ -197,6 +197,8 @@ test("监听器识别非 ATS 岗位详情页（含 JD 标记）并触发重生�
     pollIntervalMs: 300,
     maxPolls: 4
   });
+  await page.waitForTimeout(500);
+  await page.click("h1");
   await page.waitForTimeout(1600);
   watcher.stop();
   assert.ok(fired >= 1, "应识别 JD 详情页并触发重生成");
@@ -221,6 +223,8 @@ test("监听器能穿透 shadow DOM 读取岗位详情", async (t) => {
     pollIntervalMs: 300,
     maxPolls: 4
   });
+  await page.waitForTimeout(500);
+  await page.click("h1");
   await page.waitForTimeout(1600);
   watcher.stop();
   assert.ok(fired >= 1, "shadow DOM 里的 JD 也应被识别");
@@ -247,9 +251,35 @@ test("监听器扫描上下文所有标签页，新标签页里的岗位详情�
   });
   const jobTab = await context.newPage();
   await jobTab.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href);
+  await page.waitForTimeout(500);
+  await jobTab.click("h1");
   await page.waitForTimeout(1800);
   watcher.stop();
   assert.ok(fired >= 1, "新标签页里的 JD 详情应被识别");
+});
+
+test("未点击任何岗位时不触发自动重生成（避免列表页误触发）", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href);
+  let fired = 0;
+  const watcher = startFormWatcher({
+    page,
+    candidate: loadCandidateAutofill(),
+    onFieldsChange: () => {},
+    onJobDetail: () => { fired++; },
+    onApplyForm: () => {},
+    pollIntervalMs: 300,
+    maxPolls: 4
+  });
+  await page.waitForTimeout(1600);
+  watcher.stop();
+  assert.equal(fired, 0, "没有点击岗位卡片时不应触发");
 });
 
 test("已填写字段不被覆盖，重复扫描不重复填写", async (t) => {
