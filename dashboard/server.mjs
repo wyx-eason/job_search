@@ -211,9 +211,10 @@ export function createDashboardServer(options = {}) {
                 });
               }
             },
-            onApplyForm: () => {
+            onApplyForm: ({ page: formPage } = {}) => {
               const session = applySessions.get(job.id) || assistant;
               if (session) {
+                if (formPage && !formPage.isClosed()) session.latestPage = formPage;
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "applyForm" };
                 regenerateForCurrentJob(session, { auto: true }).catch((error) => {
                   session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
