@@ -387,6 +387,9 @@ async function main() {
             const r = await fetch(`/api/apply/status?jobId=${encodeURIComponent(data.sessionId)}`);
             if (!r.ok) return;
             const s = await readJson(r);
+            if (s.regenInProgress) {
+              status.textContent = "正在按当前岗位重新生成简历…（LLM 润色约 1-4 分钟，请稍候）";
+            }
             if (s.lastAutoAttempt && s.lastAutoAttempt.at !== lastShownAttemptAt) {
               lastShownAttemptAt = s.lastAutoAttempt.at;
               if (s.lastAutoAttempt.ok) {

@@ -41,6 +41,7 @@ export function createDashboardServer(options = {}) {
     if (session.regenLock) {
       // 正在生成时又检测到新岗位：记录待办，当前生成结束后按最新页面状态重跑
       session.pendingRegen = { auto };
+      console.log(`[投递会话] ${auto ? "自动" : "手动"}重生成排队（当前正在生成中）`);
       return null;
     }
     session.regenLock = true;
@@ -63,15 +64,18 @@ export function createDashboardServer(options = {}) {
       const guard = shouldAutoRegenerate({ lastRegen: session.lastRegen, jdText, url: activePage.url(), requireMarkers, force, detailOk: isJobDetailPageText(text) });
       if (!guard.ok) {
         if (auto) session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: guard.reason };
+        console.log(`[投递会话] 重生成跳过（${auto ? "自动" : "手动"}）：${guard.reason} | url=${activePage.url()}`);
         return { skipped: guard.reason };
       }
       const pageTitle = extractJobTitleFromPageText(text);
+      console.log(`[投递会话] 开始${auto ? "自动" : "手动"}重生成 | 岗位=${pageTitle || session.job.title_raw} | jdLen=${jdText.length} | url=${activePage.url()}`);
       const regenJob = {
         ...session.job,
         jd_text: jdText,
         title_raw: String(pageTitle || "").trim().slice(0, 60) || session.job.title_raw
       };
       const pkg = await generateApplicationPackage({ job: regenJob, root, userFeedback: session.feedback || "" });
+      console.log(`[投递会话] 重生成完成 | ${pkg.packagePath} | QA=${pkg.qa?.ok}`);
       const uploadPdf = prepareUploadResume(pkg.packagePath, regenJob.company, regenJob.title_raw);
       const uploaded = await uploadResumeToForm(activePage, uploadPdf);
       session.resumePdfPath = uploadPdf;
@@ -95,6 +99,10 @@ export function createDashboardServer(options = {}) {
         await showBanner(activePage, `✓ 简历已按当前岗位重新生成并上传：${path.basename(uploadPdf)}（QA ${pkg.qa?.ok ? "通过" : "有问题"}）`);
       }
       return session.lastRegen;
+    } catch (error) {
+      console.error(`[投递会话] 重生成失败：${error.message}`);
+      session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
+      return null;
     } finally {
       session.regenLock = false;
       const pending = session.pendingRegen;
@@ -206,8 +214,10 @@ export function createDashboardServer(options = {}) {
               if (session) {
                 if (detailPage && !detailPage.isClosed()) session.latestPage = detailPage;
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "jobDetail" };
+                console.log(`[投递会话] 检测到岗位详情页 | url=${detailPage ? detailPage.url() : ""}`);
                 regenerateForCurrentJob(session, { auto: true }).catch((error) => {
                   session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
+                  console.error(`[投递会话] 自动重生成异常：${error.message}`);
                 });
               }
             },
@@ -216,8 +226,10 @@ export function createDashboardServer(options = {}) {
               if (session) {
                 if (formPage && !formPage.isClosed()) session.latestPage = formPage;
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "applyForm" };
+                console.log(`[投递会话] 检测到申请表单 | url=${formPage ? formPage.url() : ""}`);
                 regenerateForCurrentJob(session, { auto: true }).catch((error) => {
                   session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
+                  console.error(`[投递会话] 自动重生成异常：${error.message}`);
                 });
               }
             }
@@ -328,6 +340,7 @@ export function createDashboardServer(options = {}) {
         res.end(
           JSON.stringify({
             sessionOpen: Boolean(session),
+            regenInProgress: Boolean(session?.regenLock),
             lastRegen: session?.lastRegen || null,
             lastAutoAttempt: session?.lastAutoAttempt || null,
             lastWatcherEvent: session?.lastWatcherEvent || null
