@@ -1,1 +1,1 @@
-console.log('schtasks /Create /SC DAILY /TN "ChinaCampusOpsDailyScan" /ST 08:00 /TR "node E:\\job_search\\china-campus-ops\\scripts\\daily-scan.mjs"');
+console.log('schtasks /Create /SC DAILY /ST 08:30 /TN "ChinaCampusOpsDailyScan" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File E:\\job_search\\china-campus-ops\\scripts\\run-online-scan.ps1" /F');
