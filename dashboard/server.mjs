@@ -38,7 +38,11 @@ export function createDashboardServer(options = {}) {
   const applySessions = new Map();
   const applyInflight = new Set();
   async function regenerateForCurrentJob(session, { auto = false } = {}) {
-    if (session.regenLock) return null;
+    if (session.regenLock) {
+      // 正在生成时又检测到新岗位：记录待办，当前生成结束后按最新页面状态重跑
+      session.pendingRegen = { auto };
+      return null;
+    }
     session.regenLock = true;
     try {
       if (auto) {
@@ -93,6 +97,13 @@ export function createDashboardServer(options = {}) {
       return session.lastRegen;
     } finally {
       session.regenLock = false;
+      const pending = session.pendingRegen;
+      session.pendingRegen = null;
+      if (pending) {
+        regenerateForCurrentJob(session, { auto: pending.auto }).catch((error) => {
+          session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
+        });
+      }
     }
   }
   const server = http.createServer(async (req, res) => {
@@ -195,14 +206,18 @@ export function createDashboardServer(options = {}) {
               if (session) {
                 if (detailPage && !detailPage.isClosed()) session.latestPage = detailPage;
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "jobDetail" };
-                regenerateForCurrentJob(session, { auto: true }).catch(() => {});
+                regenerateForCurrentJob(session, { auto: true }).catch((error) => {
+                  session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
+                });
               }
             },
             onApplyForm: () => {
               const session = applySessions.get(job.id) || assistant;
               if (session) {
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "applyForm" };
-                regenerateForCurrentJob(session, { auto: true }).catch(() => {});
+                regenerateForCurrentJob(session, { auto: true }).catch((error) => {
+                  session.lastAutoAttempt = { at: new Date().toISOString(), ok: false, reason: `生成失败：${error.message}` };
+                });
               }
             }
           });
