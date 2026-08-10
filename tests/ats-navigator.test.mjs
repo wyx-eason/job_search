@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
-import { pickKeyword, detectAts, navigateToApply, isJobDetailUrl, hasSingleRole, shouldDeferResume, cleanJobTitleForFileName } from "../lib/ats-navigator.mjs";
+import { pickKeyword, detectAts, navigateToApply, isJobDetailUrl, hasSingleRole, shouldDeferResume, cleanJobTitleForFileName, looksLikeJobDetailText } from "../lib/ats-navigator.mjs";
 import { autofillApplyForm, loadCandidateAutofill } from "../lib/apply-assistant.mjs";
 
 const config = JSON.parse(fs.readFileSync(path.resolve("config/apply.json"), "utf8"));
@@ -45,6 +45,11 @@ test("识别具体岗位详情页 URL", () => {
   assert.equal(isJobDetailUrl("https://app.mokahr.com/campus-recruitment/x#/job/uuid"), true);
   assert.equal(isJobDetailUrl("https://app.mokahr.com/campus-recruitment/x#/jobs"), false);
   assert.equal(isJobDetailUrl("https://xiaomi.jobs.f.mioffice.cn/toptalent/position/123/detail"), true);
+});
+
+test("非 ATS 页面含 JD 标记时也能识别为岗位详情", () => {
+  assert.equal(looksLikeJobDetailText("职位描述：负责游戏 AI 系统开发。任职要求：熟悉 Python。"), true);
+  assert.equal(looksLikeJobDetailText("技术、游戏策划、艺术/设计、人工智能、综合"), false);
 });
 
 test("自动导航：搜索岗位→点卡片→点立即投递→表单出现后自动填写", async (t) => {
