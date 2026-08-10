@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadDashboardData } from "./api.mjs";
 import { createApplicationPackage } from "../lib/career-ops-bridge.mjs";
-import { runApplyAssistant, autofillApplyForm, loadCandidateAutofill, uploadResumeToForm, prepareUploadResume, showBanner, loadCompleteFormValues } from "../lib/apply-assistant.mjs";
+import { runApplyAssistant, autofillApplyForm, loadCandidateAutofill, uploadResumeToForm, prepareUploadResume, showBanner, loadCompleteFormValues, getPageInnerText } from "../lib/apply-assistant.mjs";
 import { openStore } from "../lib/store.mjs";
 import { transitionStatus, statusLabel } from "../lib/application-tracker.mjs";
 import { extractJdFromPageText, extractJobTitleFromPageText, enrichJobJdWithBrowser } from "../lib/jd-enricher.mjs";
@@ -46,7 +46,7 @@ export function createDashboardServer(options = {}) {
           return { skipped: "10 秒内不重复自动生成" };
         }
       }
-      const text = await session.page.evaluate(() => document.body.innerText);
+      const text = await getPageInnerText(session.page);
       // 手动点击/提交意见 = 用户明确要求重做，跳过“JD 未变化/同一岗位”类防重复限制；
       // JD 取页面实时内容，页面里没有就复用上次成功生成时的 JD，保证预览丢失后仍可重生成
       const force = !auto;

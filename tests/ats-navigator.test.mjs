@@ -49,6 +49,8 @@ test("识别具体岗位详情页 URL", () => {
 
 test("非 ATS 页面含 JD 标记时也能识别为岗位详情", () => {
   assert.equal(looksLikeJobDetailText("职位描述：负责游戏 AI 系统开发。任职要求：熟悉 Python。"), true);
+  assert.equal(looksLikeJobDetailText("岗位要求：熟悉 C++、Python，有运动规划经验者优先。"), true);
+  assert.equal(looksLikeJobDetailText("工作内容：负责机器人控制算法开发。"), true);
   assert.equal(looksLikeJobDetailText("技术、游戏策划、艺术/设计、人工智能、综合"), false);
 });
 
