@@ -67,6 +67,11 @@ test("标题提取排除简历板块名（如实习经历）", () => {
   assert.equal(extractJobTitleFromPageText(text), "");
 });
 
+test("vivo 混合页标题优先取岗位名而非“在招N人”", () => {
+  const text = "在招20人\n软件工程师（后端方向）-27届秋招\n工作职责\n我们是vivo后端团队，致力于为5亿+vivo用户提供极致的互联网软件产品体验。";
+  assert.equal(extractJobTitleFromPageText(text), "软件工程师（后端方向）-27届秋招");
+});
+
 test("生成申请包时用真实 JD 而非粗关键词", async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enrich-"));
   const job = {
