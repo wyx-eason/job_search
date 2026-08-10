@@ -24,3 +24,15 @@ test("腾讯文档行映射为岗位并通过资格判定（提前批入池、�
   const statuses = mergeJobs(jobs).map((job) => classifyEligibility(job).status);
   assert.deepEqual(statuses, ["eligible", "excluded"]);
 });
+
+test("腾讯文档中的占位行（如“删除本条”）不生成岗位", () => {
+  const jobs = qqdocsRowsToJobs(
+    [
+      { "公司名称": "DJI大疆", "招聘岗位": "删除本条", "工作地点": "西安", "投递链接": "https://example.com/del" },
+      { "公司名称": "示例公司", "招聘岗位": "AI 应用工程师", "工作地点": "西安", "投递链接": "https://example.com/ai" }
+    ],
+    { tabId: "TAB", tabName: "测试表" }
+  );
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].title, "AI 应用工程师");
+});
