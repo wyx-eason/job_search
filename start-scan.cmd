@@ -12,8 +12,8 @@ if not exist "%NODE%" (
   exit /b 1
 )
 
-echo [1/2] Running daily scan (sample jobs: examples\jobs.fixture.json)
-"%NODE%" scripts\daily-scan.mjs examples\jobs.fixture.json
+echo [1/2] Running online scan (Tencent Docs, yingjiesheng, etc.)
+"%NODE%" scripts\daily-scan.mjs --online
 if errorlevel 1 (
   echo [ERROR] Scan failed. See output above.
   pause
