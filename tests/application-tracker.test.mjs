@@ -26,6 +26,12 @@ test("状态流转规则：只允许前进一格或进入终态", () => {
   assert.equal(validateTransition("offer", "rejected").ok, true);
 });
 
+test("投递前状态可直达已投递，但 offer 之后不能回退到已投递", () => {
+  assert.equal(validateTransition("discovered", "applied").ok, true);
+  assert.equal(validateTransition("shortlisted", "applied").ok, true);
+  assert.equal(validateTransition("offer", "applied").ok, false);
+});
+
 test("完整流转并记录投递时间", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-status-"));
   const store = seedStore(dir);

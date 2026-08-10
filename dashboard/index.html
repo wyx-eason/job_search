@@ -86,6 +86,7 @@
   <section>
     <h2>投递状态</h2>
     <div class="stats" id="statusChips"></div>
+    <label class="muted"><input type="checkbox" id="showDiscovered"> 显示未处理（已发现）岗位</label>
     <table>
       <thead><tr><th>公司</th><th>岗位</th><th>状态</th><th>操作</th></tr></thead>
       <tbody id="statusJobs"></tbody>
@@ -364,6 +365,21 @@ async function main() {
             status.textContent = `已按当前岗位重新生成简历：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploaded ? `已重新上传（${regen.uploadedFileName}）。` : "未找到上传入口，请手动上传。"}`;
             showPreview(regen.packagePath);
           });
+          actions.innerHTML += ` <button class="apply-btn" id="markAppliedBtn">标记已投递</button>`;
+          document.getElementById("markAppliedBtn").addEventListener("click", async () => {
+            const res = await fetch(`/api/jobs/${encodeURIComponent(data.sessionId)}/status`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "applied", packagePath: data.packagePath || null })
+            });
+            const d = await readJson(res);
+            if (!res.ok) {
+              status.textContent = "标记失败：" + (d.error || res.status);
+              return;
+            }
+            status.textContent = "已标记为「已投递」，可在下方投递状态查看。";
+            main();
+          });
           if (window.__applyPoll) clearInterval(window.__applyPoll);
           let lastShownRegenAt = null;
           let lastShownAttemptAt = null;
@@ -435,22 +451,32 @@ async function main() {
     statusEl.textContent = "状态已更新：" + (LABELS[data.to] || data.to);
     main();
   }
-  document.getElementById("statusChips").innerHTML = Object.entries(data.statusCounts || {})
-    .map(([s, n]) => `<div class="card"><h3>${LABELS[s] || esc(s)}</h3><div class="num">${n}</div></div>`)
+  const KEY_STATUSES = ["applied", "assessment", "interview", "offer", "rejected", "withdrawn"];
+  document.getElementById("statusChips").innerHTML = KEY_STATUSES
+    .map((s) => `<div class="card"><h3>${LABELS[s]}</h3><div class="num">${data.statusCounts[s] || 0}</div></div>`)
     .join("");
-  document.getElementById("statusJobs").innerHTML = data.jobs.map((j) => {
-    const next = nextStatus(j.status);
-    const buttons = [];
-    if (next) buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="${next}">→ ${LABELS[next]}</button>`);
-    if (!TERMINAL.includes(j.status)) {
-      buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="rejected">拒绝</button>`);
-      buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="withdrawn">撤回</button>`);
+  function renderStatusTable(includeDiscovered) {
+    const list = data.jobs.filter((j) => includeDiscovered || j.status !== "discovered");
+    if (!list.length) {
+      document.getElementById("statusJobs").innerHTML = `<tr><td colspan="4" class="muted">还没有已处理的岗位（点“标记已投递”或勾选下方“显示未处理”后手动标记）</td></tr>`;
+      return;
     }
-    return `<tr><td>${esc(j.company)}</td><td>${esc(j.title)}</td><td>${LABELS[j.status] || esc(j.status)}</td><td>${buttons.join(" ")}</td></tr>`;
-  }).join("");
-  document.querySelectorAll("[data-set]").forEach((btn) =>
-    btn.addEventListener("click", () => setStatus(btn.dataset.set, btn.dataset.status))
-  );
+    document.getElementById("statusJobs").innerHTML = list.map((j) => {
+      const next = nextStatus(j.status);
+      const buttons = [];
+      if (next) buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="${next}">→ ${LABELS[next]}</button>`);
+      if (!TERMINAL.includes(j.status)) {
+        buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="rejected">拒绝</button>`);
+        buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="withdrawn">撤回</button>`);
+      }
+      return `<tr><td>${esc(j.company)}</td><td>${esc(j.title)}</td><td>${LABELS[j.status] || esc(j.status)}</td><td>${buttons.join(" ")}</td></tr>`;
+    }).join("");
+    document.querySelectorAll("[data-set]").forEach((btn) =>
+      btn.addEventListener("click", () => setStatus(btn.dataset.set, btn.dataset.status))
+    );
+  }
+  renderStatusTable(false);
+  document.getElementById("showDiscovered").addEventListener("change", (e) => renderStatusTable(e.target.checked));
 }
 
 main().catch((e) => { document.getElementById("generatedAt").textContent = "加载失败：" + e.message; });
