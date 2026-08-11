@@ -468,3 +468,29 @@ test("投递页内横幅提示注入", async (t) => {
   const found = await page.evaluate(() => Boolean(document.getElementById("apply-assistant-banner")));
   assert.equal(found, true);
 });
+
+test("申请表单在新标签页时也会被自动填写", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const listPage = await context.newPage();
+  await listPage.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href);
+  const watcher = startFormWatcher({
+    page: listPage,
+    candidate: loadCandidateAutofill(),
+    onFieldsChange: () => {},
+    onJobDetail: () => {},
+    onApplyForm: () => {},
+    pollIntervalMs: 300,
+    maxPolls: 8
+  });
+  const formTab = await context.newPage();
+  await formTab.goto(pathToFileURL(path.resolve("tests/fixtures/apply-form.html")).href);
+  await listPage.waitForTimeout(2200);
+  watcher.stop();
+  assert.equal(await formTab.inputValue("#name"), "王奕迅", "新标签页表单应被自动填写");
+  assert.equal(await formTab.inputValue("#phone"), "13800000000");
+});
