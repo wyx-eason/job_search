@@ -57,7 +57,11 @@ export function createDashboardServer(options = {}) {
       // 手动点击/提交意见 = 用户明确要求重做，跳过“JD 未变化”类防重复限制；
       // JD 取页面实时内容，页面里没有就复用上次成功生成时的 JD，保证预览丢失后仍可重生成
       const force = !auto;
-      const jdText = extractJdFromPageText(text) || session.lastJdText || session.job.jd_text || "";
+      // 若用户点击岗位卡片且已匹配到接口 JD（如 vivo），优先用接口数据，避免页面显示默认岗位
+      const useSelected = Boolean(session.selectedJobJd && session.selectedJobTitle);
+      const jdText = useSelected
+        ? session.selectedJobJd
+        : extractJdFromPageText(text) || session.lastJdText || session.job.jd_text || "";
       // 自动与普通手动重生成都要求页面是真实岗位详情（带 JD 标记），
       // 避免把内推页/登录页/列表页的文字当 JD；提交意见的反馈模式允许复用上次 JD
       const requireMarkers = !session.feedback;
@@ -67,7 +71,7 @@ export function createDashboardServer(options = {}) {
         console.log(`[投递会话] 重生成跳过（${auto ? "自动" : "手动"}）：${guard.reason} | url=${activePage.url()}`);
         return { skipped: guard.reason };
       }
-      const pageTitle = extractJobTitleFromPageText(text);
+      const pageTitle = useSelected ? session.selectedJobTitle : extractJobTitleFromPageText(text);
       console.log(`[投递会话] 开始${auto ? "自动" : "手动"}重生成 | 岗位=${pageTitle || session.job.title_raw} | jdLen=${jdText.length} | url=${activePage.url()}`);
       const regenJob = {
         ...session.job,
@@ -209,10 +213,12 @@ export function createDashboardServer(options = {}) {
             headless: false,
             resumePdfPath,
             onFieldsChange: (fields) => writeFields(fields),
-            onJobDetail: ({ page: detailPage } = {}) => {
+            onJobDetail: ({ page: detailPage, jobTitle, jdText } = {}) => {
               const session = applySessions.get(job.id) || assistant;
               if (session) {
                 if (detailPage && !detailPage.isClosed()) session.latestPage = detailPage;
+                if (jobTitle) session.selectedJobTitle = jobTitle;
+                if (jdText) session.selectedJobJd = jdText;
                 session.lastWatcherEvent = { at: new Date().toISOString(), type: "jobDetail" };
                 console.log(`[投递会话] 检测到岗位详情页 | url=${detailPage ? detailPage.url() : ""}`);
                 regenerateForCurrentJob(session, { auto: true }).catch((error) => {

@@ -17,7 +17,9 @@ import {
   loadFormValues,
   buildSelfEvaluation,
   buildAwardsSummary,
-  loadCompleteFormValues
+  loadCompleteFormValues,
+  normalizeJobTitle,
+  extractJobsFromApiPayload
 } from "../lib/apply-assistant.mjs";
 
 const config = JSON.parse(fs.readFileSync(path.resolve("config/apply.json"), "utf8"));
@@ -341,6 +343,28 @@ test("上传简历助手可直接替换表单文件", async (t) => {
   assert.equal(ok, true);
   const files = await page.evaluate(() => document.querySelector("input[type=file]").files.length);
   assert.equal(files, 1);
+});
+
+test("normalizeJobTitle 忽略标点与届别后缀", () => {
+  assert.equal(
+    normalizeJobTitle("AI大模型算法工程师（应用方向）-27届秋招"),
+    normalizeJobTitle("AI大模型算法工程师（应用方向）27届秋招")
+  );
+  assert.equal(normalizeJobTitle("安全工程师AI技术方向"), normalizeJobTitle("安全工程师（AI技术方向）"));
+});
+
+test("extractJobsFromApiPayload 提取岗位标题与 JD", () => {
+  const payload = {
+    Data: [
+      { JobAdName: "安全工程师（AI技术方向）-27届秋招", Duty: "工作职责：负责安全体系设计与漏洞分析。", Require: "任职要求：熟悉网络安全与 AI。", Id: "x1" }
+    ]
+  };
+  const jobs = extractJobsFromApiPayload(payload);
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].title, "安全工程师（AI技术方向）-27届秋招");
+  assert.match(jobs[0].jd, /工作职责/);
+  assert.match(jobs[0].jd, /任职要求/);
+  assert.equal(jobs[0].id, "x1");
 });
 
 test("识别申请表单字段组合（区别于搜索框）", () => {
