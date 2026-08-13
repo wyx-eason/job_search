@@ -3,9 +3,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { mergeJobs, classifyEligibility } from "../lib/job-contract.mjs";
 import { openStore } from "../lib/store.mjs";
 import { createDashboardServer } from "../dashboard/server.mjs";
+
+const config = JSON.parse(fs.readFileSync(path.resolve("config/apply.json"), "utf8"));
+const require = createRequire(path.resolve(config.playwrightPackage));
+const { chromium } = require("playwright");
 
 function fixture() {
   const raw = JSON.parse(fs.readFileSync(path.resolve("examples/jobs.fixture.json"), "utf8"));
@@ -400,6 +406,67 @@ test("按岗位重新生成简历接口：无会话时返回 404", async (t) => 
     body: JSON.stringify({ jobId: "no-session" })
   });
   assert.equal(res.status, 404);
+});
+
+test("填表接口对当前活动页面填写表单", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-refill-active-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([
+    {
+      source: "qqdocs",
+      source_job_id: "REFILL1",
+      company: "测试公司",
+      title: "产品开发类、研发类、职能类",
+      city: "西安",
+      description: "2027 届秋招",
+      posting_url: "https://app.mokahr.com/campus_apply/test/refill#/jobs"
+    }
+  ]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "refill-page-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const formPage = await context.newPage();
+  await formPage.goto(pathToFileURL(path.resolve("tests/fixtures/apply-form.html")).href);
+  const stalePage = await context.newPage();
+  await stalePage.setContent("<h1>旧列表页</h1>");
+  const fakeAssistant = {
+    result: { formFields: [], filled: [], skippedSensitive: [], skippedUnknown: [], note: "手动模式", navigation: { matched: false, log: [] } },
+    page: stalePage,
+    context,
+    watcher: { stop: () => {} }
+  };
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    applyAssistant: async () => fakeAssistant,
+    locateActivePage: async () => formPage
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  await fetch(`${url}/api/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId })
+  });
+  const res = await fetch(`${url}/api/apply/refill`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: jobId })
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.ok(data.filled.some((f) => f.includes("姓名")));
+  assert.equal(await formPage.inputValue("#name"), "王奕迅");
 });
 
 test("current-resume 无会话时返回 404", async (t) => {

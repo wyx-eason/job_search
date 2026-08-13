@@ -355,7 +355,13 @@ export function createDashboardServer(options = {}) {
           res.end(JSON.stringify({ error: "没有打开的投递会话，请重新点击去投递" }));
           return;
         }
-        const result = await autofillApplyForm(session.formPage || session.selectedDetailPage || session.page, loadCandidateAutofill(), { resumePdfPath: session.resumePdfPath, formValues: loadCompleteFormValues() });
+        const target = await locateActivePage(session.context, session.formPage || session.selectedDetailPage || session.page);
+        if (!target || target.isClosed()) {
+          res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: "没有可用的浏览器页面，请重新点击去投递" }));
+          return;
+        }
+        const result = await autofillApplyForm(target, loadCandidateAutofill(), { resumePdfPath: session.resumePdfPath, formValues: loadCompleteFormValues() });
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
         res.end(JSON.stringify(result));
         return;
