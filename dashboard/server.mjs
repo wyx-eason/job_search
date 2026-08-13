@@ -376,14 +376,14 @@ export function createDashboardServer(options = {}) {
           res.end(JSON.stringify({ error: "没有打开的投递会话，请重新点击去投递" }));
           return;
         }
-        const regen = await regenerateForCurrentJob(session);
-        if (!regen || regen.skipped) {
+        const out = await generateResumeFromCurrentPage(session);
+        if (out?.error) {
           res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ error: regen?.skipped || "未能从当前页面提取岗位 JD，请先打开具体岗位页面" }));
+          res.end(JSON.stringify({ error: out.error }));
           return;
         }
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-        res.end(JSON.stringify(regen));
+        res.end(JSON.stringify(out));
         return;
       }
       if (req.method === "POST" && req.url === "/api/apply/feedback") {
