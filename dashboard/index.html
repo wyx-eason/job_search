@@ -327,9 +327,9 @@ async function main() {
           const packageText = data.packagePath
             ? `申请包已生成：${data.packagePath}（${data.files.length} 个文件）。`
             : "公司级岗位：选定具体岗位后会自动生成并上传该岗位的定制简历（当前未生成，避免出现多份简历）。";
-          status.textContent = `已打开投递页，投递会话已建立（正在监听申请表单）。助手会持续监听：登录并进入申请表单后会自动填写并可按岗位重生成简历。${packageText}${qaText ? qaText + "。" : ""}${uploadText}表单结构已自动导出（${data.formFieldsPath}）。自动填写 ${data.filled.length} 项；已跳过 ${data.alreadyFilled || 0} 项已填写字段；${data.userEdited ? `你手动改过的 ${data.userEdited} 个字段不再自动覆盖；` : ""}敏感字段 ${data.skippedSensitive.length} 项待确认；未知字段 ${data.skippedUnknown.length} 项。${navLog ? "导航：" + navLog + "。" : ""}${data.note || ""}请检查后手动提交，助手不会点提交。`;
+          status.textContent = `已打开投递页（浏览器），投递会话已建立。请按顺序操作：① 在浏览器里登录并打开你想投的具体岗位 JD 页；② 回到本页点“按当前页面生成简历”；③ 在浏览器里点投递进入申请表单；④ 回到本页点“填表（当前页面）”自动填写。${navLog ? "导航：" + navLog + "。" : ""}${data.note || ""}助手不会点提交。`;
           const actions = document.getElementById("applyActions");
-          actions.innerHTML = `${data.packagePath ? `<button class="apply-btn" id="previewResumeBtn">预览简历</button><button class="apply-btn" id="openPackageBtn">打开申请包目录</button>` : ""}<button class="apply-btn" id="refillBtn">重新填表</button>`;
+          actions.innerHTML = `${data.packagePath ? `<button class="apply-btn" id="previewResumeBtn">预览简历</button><button class="apply-btn" id="openPackageBtn">打开申请包目录</button>` : ""}<button class="apply-btn" id="regenBtn">按当前页面生成简历</button><button class="apply-btn" id="refillBtn">填表（当前页面）</button>`;
           if (data.packagePath) {
             previewBtn = document.getElementById("previewResumeBtn");
             previewBtn.addEventListener("click", () => showPreview(previewBtn.dataset.path || data.packagePath));
@@ -350,19 +350,19 @@ async function main() {
               body: JSON.stringify({ sessionId: data.sessionId })
             });
             const refill = await readJson(res);
-            if (!res.ok) { status.textContent = "重新填表失败：" + (refill.error || res.status); return; }
-            status.textContent = `已重新填表：自动填写 ${refill.filled.length} 项；${refill.userEdited ? `你手动改过的 ${refill.userEdited} 个字段未动；` : ""}敏感字段 ${refill.skippedSensitive.length} 项待确认；未知字段 ${refill.skippedUnknown.length} 项（如：${refill.skippedUnknown.slice(0, 3).join("、")}）。${refill.note || ""}`;
+            if (!res.ok) { status.textContent = "填表失败：" + (refill.error || res.status); return; }
+            status.textContent = `已对当前页面填表：自动填写 ${refill.filled.length} 项；${refill.userEdited ? `你手动改过的 ${refill.userEdited} 个字段未动；` : ""}敏感字段 ${refill.skippedSensitive.length} 项待确认；未知字段 ${refill.skippedUnknown.length} 项（如：${refill.skippedUnknown.slice(0, 3).join("、")}）。${refill.uploadedResume ? `已上传简历（${refill.uploadedResume}）。` : (refill.resumeUploadSkipped || "未上传简历（请先按当前页面生成简历）。")}${refill.note || ""}`;
           });
-          actions.innerHTML += ` <button class="apply-btn" id="regenBtn">按当前岗位重新生成简历</button>`;
           document.getElementById("regenBtn").addEventListener("click", async () => {
-            const res = await fetch("/api/apply/regenerate", {
+            status.textContent = "正在按当前页面生成简历…（LLM 润色约 10-60 秒，请稍候）";
+            const res = await fetch("/api/apply/current-resume", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ sessionId: data.sessionId })
             });
             const regen = await readJson(res);
-            if (!res.ok) { status.textContent = "重新生成：" + (regen.error || res.status); return; }
-            status.textContent = `已按当前岗位重新生成简历：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploaded ? `已重新上传（${regen.uploadedFileName}）。` : "未找到上传入口，请手动上传。"}`;
+            if (!res.ok) { status.textContent = "生成失败：" + (regen.error || res.status); return; }
+            status.textContent = `已按当前页面生成简历：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploadedFileName ? `可用于填表上传（${regen.uploadedFileName}）。` : ""}`;
             showPreview(regen.packagePath);
           });
           actions.innerHTML += ` <button class="apply-btn" id="markAppliedBtn">标记已投递</button>`;
@@ -381,28 +381,12 @@ async function main() {
             main();
           });
           if (window.__applyPoll) clearInterval(window.__applyPoll);
-          let lastShownRegenAt = null;
-          let lastShownAttemptAt = null;
           window.__applyPoll = setInterval(async () => {
             const r = await fetch(`/api/apply/status?jobId=${encodeURIComponent(data.sessionId)}`);
             if (!r.ok) return;
             const s = await readJson(r);
             if (s.regenInProgress) {
-              status.textContent = "正在按当前岗位重新生成简历…（LLM 润色约 1-4 分钟，请稍候）";
-            }
-            if (s.lastAutoAttempt && s.lastAutoAttempt.at !== lastShownAttemptAt) {
-              lastShownAttemptAt = s.lastAutoAttempt.at;
-              if (s.lastAutoAttempt.ok) {
-                status.textContent = `已自动按当前岗位重新生成简历：${s.lastRegen?.packagePath}（QA ${s.lastRegen?.qa?.ok ? "通过" : "有问题"}）。${s.lastRegen?.uploaded ? `已重新上传（${s.lastRegen?.uploadedFileName}）。` : "请手动上传简历。"}`;
-                if (s.lastRegen?.packagePath) showPreview(s.lastRegen.packagePath);
-              } else {
-                status.textContent = `自动重生成未执行：${s.lastAutoAttempt.reason}。${s.lastWatcherEvent ? "（已检测到" + s.lastWatcherEvent.type + "事件）" : ""}`;
-              }
-            }
-            if (s.lastRegen && s.lastRegen.at !== lastShownRegenAt) {
-              lastShownRegenAt = s.lastRegen.at;
-              status.textContent = `已自动按当前岗位重新生成简历：${s.lastRegen.packagePath}（QA ${s.lastRegen.qa?.ok ? "通过" : "有问题"}）。${s.lastRegen.uploaded ? "已重新上传到表单。" : "请手动上传简历。"}`;
-              if (s.lastRegen.packagePath) showPreview(s.lastRegen.packagePath);
+              status.textContent = "正在按当前页面生成简历…（LLM 润色约 10-60 秒，请稍候）";
             }
           }, 4000);
         } catch (e) {
