@@ -365,7 +365,7 @@ async function main() {
             status.textContent = `已按当前页面生成简历（岗位：${regen.jobTitle || "未知"}）：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploadedFileName ? `可用于填表上传（${regen.uploadedFileName}）。` : ""}`;
             showPreview(regen.packagePath);
           });
-          actions.innerHTML += ` <button class="apply-btn" id="markAppliedBtn">标记已投递</button>`;
+          actions.insertAdjacentHTML("beforeend", `<button class="apply-btn" id="markAppliedBtn">标记已投递</button>`);
           document.getElementById("markAppliedBtn").addEventListener("click", async () => {
             const res = await fetch(`/api/jobs/${encodeURIComponent(data.sessionId)}/status`, {
               method: "POST",
