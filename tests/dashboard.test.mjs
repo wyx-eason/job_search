@@ -593,6 +593,85 @@ test("current-resume 对 JD 页生成申请包并记录会话", async (t) => {
   assert.equal(data.jobTitle, "AI应用工程师");
 });
 
+test("current-resume 当前页非 JD 页时回退到已锁定岗位生成", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-current-resume-locked-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([
+    {
+      source: "qqdocs",
+      source_job_id: "CUR3",
+      company: "测试公司",
+      title: "产品开发类、研发类、职能类",
+      city: "西安",
+      description: "2027 届秋招",
+      posting_url: "https://app.mokahr.com/campus_apply/test/cur3#/jobs"
+    }
+  ]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  const pkgDir = path.join(path.resolve("output/applications"), `current-resume-locked-test-${Date.now()}`);
+  fs.mkdirSync(pkgDir, { recursive: true });
+  fs.writeFileSync(path.join(pkgDir, "resume.pdf"), "%PDF-1.4 fake", "utf8");
+  t.after(() => fs.rmSync(pkgDir, { recursive: true, force: true }));
+  const detailPage = {
+    isClosed: () => false,
+    url: () => "https://app.mokahr.com/campus_apply/test/cur3#/job/locked-1"
+  };
+  const fakeAssistant = {
+    result: { formFields: [], filled: [], skippedSensitive: [], skippedUnknown: [], note: "手动模式", navigation: { matched: false, log: [] } },
+    page: { isClosed: () => false },
+    context: { close: async () => {} },
+    watcher: { stop: () => {}, setResumePdfPath: () => {} }
+  };
+  let fireJobDetail = null;
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    applyAssistant: async (options) => {
+      fireJobDetail = () =>
+        options.onJobDetail({
+          revision: 1,
+          page: detailPage,
+          url: detailPage.url(),
+          jobTitle: "具身智能算法应用工程师",
+          pageText: "具身智能算法应用工程师\n岗位职责：负责具身大模型应用开发与部署。\n任职要求：熟悉 Python、PyTorch 与 Agent。"
+        });
+      return fakeAssistant;
+    },
+    locateActivePage: async () => ({ isClosed: () => false, url: () => "https://app.mokahr.com/campus_apply/test/cur3#/job/locked-1/apply" }),
+    readPageText: async () => "申请职位\n姓名：\n手机：\n邮箱：\n简历上传",
+    generatePackage: async () => ({
+      packagePath: pkgDir,
+      files: ["resume.pdf"],
+      qa: { ok: true, issues: [] },
+      polish: null
+    })
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  await fetch(`${url}/api/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId })
+  });
+  fireJobDetail();
+  await new Promise((r) => setTimeout(r, 50));
+  const res = await fetch(`${url}/api/apply/current-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: jobId })
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.jobTitle, "具身智能算法应用工程师");
+  assert.equal(data.packagePath, pkgDir);
+});
+
 test("投递会话状态接口返回未打开会话", async (t) => {
   const url = await withServer(t);
   const res = await fetch(`${url}/api/apply/status?jobId=none`);

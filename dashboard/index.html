@@ -362,7 +362,7 @@ async function main() {
             });
             const regen = await readJson(res);
             if (!res.ok) { status.textContent = "生成失败：" + (regen.error || res.status); return; }
-            status.textContent = `已按当前页面生成简历：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploadedFileName ? `可用于填表上传（${regen.uploadedFileName}）。` : ""}`;
+            status.textContent = `已按当前页面生成简历（岗位：${regen.jobTitle || "未知"}）：${regen.packagePath}（QA ${regen.qa?.ok ? "通过" : "有问题：" + (regen.qa?.issues || []).join("、")}）。${regen.uploadedFileName ? `可用于填表上传（${regen.uploadedFileName}）。` : ""}`;
             showPreview(regen.packagePath);
           });
           actions.innerHTML += ` <button class="apply-btn" id="markAppliedBtn">标记已投递</button>`;

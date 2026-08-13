@@ -128,11 +128,21 @@ export function createDashboardServer(options = {}) {
     const activePage = await locateActivePage(session.context, session.page);
     if (!activePage || activePage.isClosed()) throw new Error("没有可用的浏览器页面，请重新点击“去投递”");
     const text = await readPageText(activePage);
-    if (!isJobDetailPageText(text)) {
-      return { error: "当前页面不是具体岗位 JD 页，请先在浏览器里打开目标岗位的职位详情页（页面需含岗位职责/任职要求等内容）" };
+    let jobTitle = "";
+    let jdText = "";
+    let sourceUrl = activePage.url();
+    if (isJobDetailPageText(text)) {
+      jobTitle = extractJobTitleFromPageText(text) || session.selectedJobTitle || session.job?.title_raw || session.job?.title || "";
+      jdText = extractJdFromPageText(text) || session.selectedJobJd || session.lastJdText || session.job?.jd_text || "";
+    } else if (session.selectedJobJd && session.selectedJobTitle) {
+      // 当前页不是 JD 页（例如已点“投递”进入申请表单），回退到本次会话用户点击投递锁定的岗位
+      jobTitle = session.selectedJobTitle;
+      jdText = session.selectedJobJd;
+      sourceUrl = session.selectedDetailUrl || sourceUrl;
+      console.log(`[投递会话] 当前页非 JD 页，使用已锁定岗位：${jobTitle} | url=${sourceUrl}`);
+    } else {
+      return { error: "当前页面不是具体岗位 JD 页，且尚未检测到点击投递的岗位。请在浏览器里打开目标岗位的职位详情页；若已点“投递”进入申请表单，请先在岗位详情页点一次“投递”，再回来点“按当前页面生成简历”。" };
     }
-    const jobTitle = extractJobTitleFromPageText(text) || session.job?.title_raw || session.job?.title || "";
-    const jdText = extractJdFromPageText(text) || session.lastJdText || session.job?.jd_text || "";
     if (!jdText) return { error: "未能从当前页面提取到 JD 内容" };
     const job = {
       ...(session.job || {}),
@@ -140,6 +150,7 @@ export function createDashboardServer(options = {}) {
       title_raw: jobTitle || session.job?.title_raw || "岗位",
       jd_text: jdText
     };
+    console.log(`[投递会话] 开始按当前页面生成简历 | 岗位=${jobTitle || "未知"} | jdLen=${jdText.length} | url=${sourceUrl}`);
     const pkg = await generatePackage({ job, root, userFeedback: session.feedback || "" });
     const uploadPdf = prepareUploadResume(pkg.packagePath, job.company_raw, job.title_raw);
     session.resumePdfPath = uploadPdf;
@@ -157,6 +168,7 @@ export function createDashboardServer(options = {}) {
     };
     session.lastJdText = jdText;
     session.lastJobTitle = jobTitle;
+    console.log(`[投递会话] 简历生成完成 | ${pkg.packagePath} | QA=${pkg.qa?.ok}`);
     return {
       packagePath: pkg.packagePath,
       files: pkg.files,
