@@ -746,3 +746,29 @@ test("findActivePage 在无聚焦页时回退主页面", async (t) => {
   const active = await findActivePage(context, main);
   assert.equal(active, main);
 });
+
+test("autoFill=false 时检测到表单不自动填写，但仍触发表单事件", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(pathToFileURL(path.resolve("tests/fixtures/apply-form.html")).href);
+  let formEvents = 0;
+  const watcher = startFormWatcher({
+    page,
+    candidate: loadCandidateAutofill(),
+    autoFill: false,
+    pollIntervalMs: 500,
+    maxPolls: 3,
+    onFieldsChange: () => {},
+    onJobDetail: () => {},
+    onApplyForm: () => { formEvents++; }
+  });
+  t.after(() => watcher.stop());
+  await page.waitForTimeout(2200);
+  assert.equal(await page.inputValue("#name"), "", "autoFill=false 时不应自动填写");
+  assert.ok(formEvents >= 1, "仍应检测到表单并触发 onApplyForm");
+});
