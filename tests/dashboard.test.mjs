@@ -118,6 +118,114 @@ test("apply 接口成功时返回完整响应（会话、字段文件、导航�
   assert.match(data.note, /公司级岗位/);
 });
 
+test("apply 接口以手动模式启动投递助手（不自动导航、不自动填表、不预生成简历）", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-apply-manual-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([
+    {
+      source: "qqdocs",
+      source_job_id: "MANUAL1",
+      company: "测试公司",
+      title: "产品开发类、研发类、职能类",
+      city: "西安",
+      description: "2027 届秋招",
+      posting_url: "https://app.mokahr.com/campus_apply/test/manual#/jobs"
+    }
+  ]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  let captured = null;
+  const fakeAssistant = {
+    result: { formFields: [], filled: [], skippedSensitive: [], skippedUnknown: [], note: "手动模式", navigation: { matched: false, log: [] } },
+    page: { isClosed: () => false },
+    context: { close: async () => {} },
+    watcher: { stop: () => {} }
+  };
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    applyAssistant: async (options) => {
+      captured = options;
+      return fakeAssistant;
+    }
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  const res = await fetch(`${url}/api/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId })
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.deferResume, true);
+  assert.equal(data.packagePath, null);
+  assert.equal(captured.autoNavigate, false);
+  assert.equal(captured.autoFill, false);
+});
+
+test("apply 助手返回前发生的岗位事件会在会话建立后重放", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-apply-events-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([{
+    source: "qqdocs",
+    source_job_id: "EARLY-EVENT",
+    company: "测试公司",
+    title: "研发类",
+    city: "西安",
+    description: "2027 届秋招",
+    posting_url: "https://app.mokahr.com/campus_apply/test/early#/jobs"
+  }]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  const detailPage = {
+    isClosed: () => false,
+    url: () => "https://example.test/jobs/late-selected"
+  };
+  const fakeAssistant = {
+    result: { formFields: [], filled: [], skippedSensitive: [], skippedUnknown: [], navigation: { matched: false, log: [] } },
+    page: detailPage,
+    context: { close: async () => {} },
+    watcher: { stop: () => {}, setResumePdfPath: () => {} }
+  };
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    applyAssistant: async (options) => {
+      options.onJobSelection({ revision: 1 });
+      options.onJobDetail({
+        revision: 1,
+        page: detailPage,
+        url: detailPage.url(),
+        jobTitle: "最后投递的算法工程师",
+        pageText: "最后投递的算法工程师"
+      });
+      return fakeAssistant;
+    }
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+
+  const applyRes = await fetch(`${url}/api/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId })
+  });
+  assert.equal(applyRes.status, 200);
+  const status = await (await fetch(`${url}/api/apply/status?jobId=${jobId}`)).json();
+  assert.equal(status.lastWatcherEvent?.type, "jobDetail");
+});
+
 test("反馈接口：无会话返回 404，空意见返回 400", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-feedback-"));
   const dbPath = path.join(dir, "jobs.db");
