@@ -183,6 +183,9 @@ export function createDashboardServer(options = {}) {
 
   const server = http.createServer(async (req, res) => {
     try {
+      if (/^\/api\/apply/.test(req.url || "")) {
+        console.log(`[请求] ${req.method} ${req.url}`);
+      }
       if (req.method === "GET" && req.url === "/") {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(html);
