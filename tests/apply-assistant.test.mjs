@@ -18,6 +18,7 @@ import {
   buildSelfEvaluation,
   buildAwardsSummary,
   loadCompleteFormValues,
+  findActivePage,
   normalizeJobTitle,
   extractJobsFromApiPayload
 } from "../lib/apply-assistant.mjs";
@@ -138,6 +139,34 @@ test("投递助手自动上传简历文件", async (t) => {
   assert.equal(files, 1);
 });
 
+test("等待表单期间岗位切换后不上传启动时的旧简历", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.setContent("<h1>岗位详情</h1>");
+  let currentResumePdfPath = path.resolve("tests/fixtures/apply-form.html");
+  setTimeout(() => {
+    currentResumePdfPath = null;
+    page.setContent(`
+      <label>姓名 <input id="name" name="name"></label>
+      <label>手机号 <input id="phone" name="phone"></label>
+      <label>简历 <input id="resume" name="resume" type="file"></label>
+    `).catch(() => {});
+  }, 300);
+
+  await waitAndAutofill(page, loadCandidateAutofill(), 4000, {
+    resumePdfPath: path.resolve("tests/fixtures/apply-form.html"),
+    getResumePdfPath: () => currentResumePdfPath
+  });
+
+  assert.equal(await page.inputValue("#name"), "王奕迅");
+  assert.equal(await page.evaluate(() => document.querySelector("#resume").files.length), 0);
+});
+
 test("投递助手能穿透 shadow DOM 填写表单", async (t) => {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
   const context = await chromium.launchPersistentContext(profileDir, {
@@ -200,7 +229,7 @@ test("监听器识别非 ATS 岗位详情页（含 JD 标记）并触发重生�
     maxPolls: 4
   });
   await page.waitForTimeout(500);
-  await page.click("h1");
+  await page.click("#apply");
   await page.waitForTimeout(1600);
   watcher.stop();
   assert.ok(fired >= 1, "应识别 JD 详情页并触发重生成");
@@ -226,7 +255,7 @@ test("监听器能穿透 shadow DOM 读取岗位详情", async (t) => {
     maxPolls: 4
   });
   await page.waitForTimeout(500);
-  await page.click("h1");
+  await page.click("#apply");
   await page.waitForTimeout(1600);
   watcher.stop();
   assert.ok(fired >= 1, "shadow DOM 里的 JD 也应被识别");
@@ -251,10 +280,11 @@ test("监听器扫描上下文所有标签页，新标签页里的岗位详情�
     pollIntervalMs: 300,
     maxPolls: 6
   });
+  await watcher.ready;
   const jobTab = await context.newPage();
   await jobTab.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href);
   await page.waitForTimeout(500);
-  await jobTab.click("h1");
+  await jobTab.click("#apply");
   await page.waitForTimeout(1800);
   watcher.stop();
   assert.ok(fired >= 1, "新标签页里的 JD 详情应被识别");
@@ -282,6 +312,129 @@ test("未点击任何岗位时不触发自动重生成（避免列表页误触�
   await page.waitForTimeout(1600);
   watcher.stop();
   assert.equal(fired, 0, "没有点击岗位卡片时不应触发");
+});
+
+test("只锁定最后点击投递的岗位详情，列表页和未投递详情不能覆盖", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const listPage = await context.newPage();
+  await listPage.setContent("<h1>职位列表</h1><a id='card'>产品经理</a>");
+  const oldDetail = await context.newPage();
+  await oldDetail.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=old");
+  const newDetail = await context.newPage();
+  await newDetail.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=new");
+  await newDetail.locator("h1").evaluate((el) => { el.textContent = "具身大模型算法实习生"; });
+
+  const locked = [];
+  const watcher = startFormWatcher({
+    page: listPage,
+    candidate: loadCandidateAutofill(),
+    onFieldsChange: () => {},
+    onJobDetail: (event) => locked.push(event),
+    onApplyForm: () => {},
+    pollIntervalMs: 200,
+    maxPolls: 15
+  });
+  t.after(() => watcher.stop());
+
+  await oldDetail.click("h1");
+  await newDetail.click("h1");
+  await listPage.waitForTimeout(500);
+  assert.equal(locked.length, 0, "只浏览详情时不应锁定岗位");
+
+  await newDetail.click("#apply");
+  await listPage.waitForTimeout(800);
+  assert.equal(locked.length, 1);
+  assert.equal(locked[0].jobTitle, "具身大模型算法实习生");
+  assert.match(locked[0].url, /job=new/);
+});
+
+test("同一轮内连续投递两个详情时按真实点击时间锁定最后一个", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const rootPage = await context.newPage();
+  await rootPage.setContent("<h1>职位列表</h1>");
+  const firstDetail = await context.newPage();
+  await firstDetail.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=first");
+  await firstDetail.locator("h1").evaluate((el) => { el.textContent = "最后选择的算法工程师"; });
+  const secondDetail = await context.newPage();
+  await secondDetail.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=second");
+  await secondDetail.locator("h1").evaluate((el) => { el.textContent = "先选择的产品经理"; });
+
+  const locked = [];
+  const watcher = startFormWatcher({
+    page: rootPage,
+    candidate: loadCandidateAutofill(),
+    onFieldsChange: () => {},
+    onJobDetail: (event) => locked.push(event),
+    onApplyForm: () => {},
+    pollIntervalMs: 800,
+    maxPolls: 8
+  });
+  t.after(() => watcher.stop());
+  await rootPage.waitForTimeout(900);
+
+  await secondDetail.click("#apply");
+  await firstDetail.click("#apply");
+  await rootPage.waitForTimeout(1600);
+
+  assert.equal(locked.at(-1)?.jobTitle, "最后选择的算法工程师");
+  assert.match(locked.at(-1)?.url || "", /job=first/);
+});
+
+test("跨页面投递事件倒序到达时仍锁定浏览器中最后点击的岗位", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const rootPage = await context.newPage();
+  await rootPage.setContent("<h1>职位列表</h1>");
+  const olderPage = await context.newPage();
+  await olderPage.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=older");
+  const newerPage = await context.newPage();
+  await newerPage.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=newer");
+  const locked = [];
+  const watcher = startFormWatcher({
+    page: rootPage,
+    candidate: loadCandidateAutofill(),
+    onFieldsChange: () => {},
+    onJobDetail: (event) => locked.push(event),
+    onApplyForm: () => {},
+    pollIntervalMs: 500,
+    maxPolls: 8
+  });
+  t.after(() => watcher.stop());
+  await watcher.ready;
+
+  const pageText = await newerPage.locator("body").innerText();
+  await newerPage.evaluate(({ pageText }) => window.__applyAssistantCommitJob({
+    url: location.href,
+    jobTitle: "后点击的算法工程师",
+    pageText,
+    clickedAt: 2000,
+    commitSequence: 1
+  }), { pageText });
+  await olderPage.evaluate(({ pageText }) => window.__applyAssistantCommitJob({
+    url: location.href,
+    jobTitle: "先点击的产品经理",
+    pageText,
+    clickedAt: 1000,
+    commitSequence: 1
+  }), { pageText });
+  await rootPage.waitForTimeout(700);
+
+  assert.equal(locked.at(-1)?.jobTitle, "后点击的算法工程师");
+  assert.match(locked.at(-1)?.url || "", /job=newer/);
 });
 
 test("已填写字段不被覆盖，重复扫描不重复填写", async (t) => {
@@ -493,4 +646,103 @@ test("申请表单在新标签页时也会被自动填写", async (t) => {
   watcher.stop();
   assert.equal(await formTab.inputValue("#name"), "王奕迅", "新标签页表单应被自动填写");
   assert.equal(await formTab.inputValue("#phone"), "13800000000");
+});
+
+test("延迟出现的表单使用监听器更新后的简历路径自动填写并上传", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const listPage = await context.newPage();
+  await listPage.setContent("<h1>职位列表</h1>");
+  const watcher = startFormWatcher({
+    page: listPage,
+    candidate: loadCandidateAutofill(),
+    resumePdfPath: null,
+    onFieldsChange: () => {},
+    onJobDetail: () => {},
+    onApplyForm: () => {},
+    pollIntervalMs: 200,
+    maxPolls: 15
+  });
+  t.after(() => watcher.stop());
+  watcher.setResumePdfPath(path.resolve("tests/fixtures/apply-form.html"));
+
+  const formTab = await context.newPage();
+  await formTab.goto(pathToFileURL(path.resolve("tests/fixtures/apply-upload.html")).href);
+  await listPage.waitForTimeout(900);
+
+  assert.equal(await formTab.inputValue("#name"), "王奕迅");
+  assert.equal(await formTab.evaluate(() => document.querySelector("#resume").files.length), 1);
+});
+
+test("切换岗位后旧表单不接收新简历，新表单等待并上传新岗位简历", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const rootPage = await context.newPage();
+  await rootPage.setContent("<h1>职位列表</h1>");
+  const oldForm = await context.newPage();
+  await oldForm.goto(pathToFileURL(path.resolve("tests/fixtures/apply-upload.html")).href + "?job=old");
+  const watcher = startFormWatcher({
+    page: rootPage,
+    candidate: loadCandidateAutofill(),
+    resumePdfPath: path.resolve("tests/fixtures/apply-form.html"),
+    onFieldsChange: () => {},
+    onJobDetail: () => {},
+    onApplyForm: () => {},
+    pollIntervalMs: 200,
+    maxPolls: 20
+  });
+  t.after(() => watcher.stop());
+  await rootPage.waitForTimeout(1200);
+  assert.equal(await oldForm.evaluate(() => document.querySelector("#resume").files[0]?.name), "apply-form.html");
+
+  const newDetail = await context.newPage();
+  await newDetail.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href + "?job=new");
+  await newDetail.click("#apply");
+  const newForm = await context.newPage();
+  await newForm.goto(pathToFileURL(path.resolve("tests/fixtures/apply-upload.html")).href + "?job=new");
+  await rootPage.waitForTimeout(500);
+  assert.equal(await newForm.evaluate(() => document.querySelector("#resume").files.length), 0, "新简历生成前不能上传旧简历");
+
+  watcher.setResumePdfPath(path.resolve("tests/fixtures/jd-detail.html"));
+  await rootPage.waitForTimeout(700);
+  assert.notEqual(await oldForm.evaluate(() => document.querySelector("#resume").files[0]?.name), "jd-detail.html", "旧表单不得被新简历覆盖");
+  assert.equal(await newForm.evaluate(() => document.querySelector("#resume").files[0]?.name), "jd-detail.html");
+});
+
+test("findActivePage 优先返回最近交互的页面，无交互时回退主页面", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const main = await context.newPage();
+  await main.setContent("<h1>主页面</h1>");
+  const other = await context.newPage();
+  await other.setContent("<h1>其他页</h1>");
+  await main.evaluate(() => { window.__applyLastActiveAt = 1000; });
+  await other.evaluate(() => { window.__applyLastActiveAt = 2000; });
+  const active = await findActivePage(context, main);
+  assert.equal(active, other);
+});
+
+test("findActivePage 在无聚焦页时回退主页面", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const main = await context.newPage();
+  await main.setContent("<h1>主页面</h1>");
+  const active = await findActivePage(context, main);
+  assert.equal(active, main);
 });

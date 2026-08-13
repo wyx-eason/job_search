@@ -25,6 +25,8 @@
 
 ### Task 1: 新增 findActivePage（当前活动标签页定位）
 
+执行时修正：`document.hasFocus()` 在 headless 下对所有页面恒为 true，无法区分当前页；且断言失败时 inspect Playwright Page 对象会导致 node:test 挂起。最终实现改为"最近真实用户交互时间戳（`window.__applyLastActiveAt`）"方案：在 `installApplyInteractionTracking` 中监听 pointerdown/keydown/wheel（仅 `isTrusted`）记录时间戳，`findActivePage` 返回时间戳最大的页面，无交互时回退主页面。测试相应改为设置时间戳断言。
+
 **Files:**
 - Modify: `lib/apply-assistant.mjs`
 - Test: `tests/apply-assistant.test.mjs`
@@ -82,14 +84,32 @@ Expected: FAIL，报 `findActivePage is not exported` 或 undefined。
 ```js
 export async function findActivePage(context, fallbackPage = null) {
   const pages = context?.pages?.() || [];
+  let best = null;
+  let bestAt = 0;
   for (const candidate of pages) {
     if (candidate.isClosed()) continue;
-    const focused = await candidate.evaluate(() => document.hasFocus?.() === true).catch(() => false);
-    if (focused) return candidate;
+    const at = await candidate.evaluate(() => Number(window.__applyLastActiveAt || 0)).catch(() => 0);
+    if (at > 0 && at > bestAt) {
+      bestAt = at;
+      best = candidate;
+    }
   }
+  if (best) return best;
   if (fallbackPage && !fallbackPage.isClosed()) return fallbackPage;
   return pages.find((p) => !p.isClosed()) || null;
 }
+```
+
+并在 `installApplyInteractionTracking` 内新增活动记录（与 `mark` 并列定义、与现有监听器一同注册）：
+
+```js
+      const markActivity = (e) => {
+        if (e.isTrusted) window.__applyLastActiveAt = Date.now();
+      };
+      // 在 document.addEventListener("click", markJobSelected, true); 之后追加：
+      document.addEventListener("pointerdown", markActivity, true);
+      document.addEventListener("keydown", markActivity, true);
+      document.addEventListener("wheel", markActivity, true);
 ```
 
 - [ ] **Step 4: 运行测试确认通过**
