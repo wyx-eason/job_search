@@ -4,7 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadDashboardData } from "./api.mjs";
-import { runApplyAssistant, autofillApplyForm, loadCandidateAutofill, uploadResumeToForm, prepareUploadResume, showBanner, loadCompleteFormValues, getPageInnerText } from "../lib/apply-assistant.mjs";
+import { runApplyAssistant, autofillApplyForm, loadCandidateAutofill, uploadResumeToForm, prepareUploadResume, showBanner, loadCompleteFormValues, getPageInnerText, findActivePage } from "../lib/apply-assistant.mjs";
 import { openStore } from "../lib/store.mjs";
 import { transitionStatus, statusLabel } from "../lib/application-tracker.mjs";
 import { extractJdFromPageText, extractJobTitleFromPageText } from "../lib/jd-enricher.mjs";
@@ -32,7 +32,7 @@ process.on("uncaughtException", (error) => {
 });
 
 export function createDashboardServer(options = {}) {
-  const { dbPath, preferencesPath, sourcesPath, host = "127.0.0.1", port = 8787, applyAssistant = runApplyAssistant } = options;
+  const { dbPath, preferencesPath, sourcesPath, host = "127.0.0.1", port = 8787, applyAssistant = runApplyAssistant, locateActivePage = findActivePage, readPageText = getPageInnerText, generatePackage = generateApplicationPackage } = options;
   const applySessions = new Map();
   const applyInflight = new Set();
   async function regenerateForCurrentJob(session, { auto = false } = {}) {
@@ -123,6 +123,52 @@ export function createDashboardServer(options = {}) {
       }
     }
   }
+
+  async function generateResumeFromCurrentPage(session) {
+    const activePage = await locateActivePage(session.context, session.page);
+    if (!activePage || activePage.isClosed()) throw new Error("没有可用的浏览器页面，请重新点击“去投递”");
+    const text = await readPageText(activePage);
+    if (!isJobDetailPageText(text)) {
+      return { error: "当前页面不是具体岗位 JD 页，请先在浏览器里打开目标岗位的职位详情页（页面需含岗位职责/任职要求等内容）" };
+    }
+    const jobTitle = extractJobTitleFromPageText(text) || session.job?.title_raw || session.job?.title || "";
+    const jdText = extractJdFromPageText(text) || session.lastJdText || session.job?.jd_text || "";
+    if (!jdText) return { error: "未能从当前页面提取到 JD 内容" };
+    const job = {
+      ...(session.job || {}),
+      company_raw: session.job?.company_raw || session.job?.company || "",
+      title_raw: jobTitle || session.job?.title_raw || "岗位",
+      jd_text: jdText
+    };
+    const pkg = await generatePackage({ job, root, userFeedback: session.feedback || "" });
+    const uploadPdf = prepareUploadResume(pkg.packagePath, job.company_raw, job.title_raw);
+    session.resumePdfPath = uploadPdf;
+    session.watcher?.setResumePdfPath?.(uploadPdf);
+    session.lastRegen = {
+      at: new Date().toISOString(),
+      url: activePage.url(),
+      jdText,
+      packagePath: pkg.packagePath,
+      qa: pkg.qa,
+      polish: pkg.polish || null,
+      uploaded: false,
+      uploadedFileName: path.basename(uploadPdf),
+      feedback: session.feedback || ""
+    };
+    session.lastJdText = jdText;
+    session.lastJobTitle = jobTitle;
+    return {
+      packagePath: pkg.packagePath,
+      files: pkg.files,
+      qa: pkg.qa,
+      polish: pkg.polish || null,
+      uploadedFileName: path.basename(uploadPdf),
+      jobTitle,
+      jdLen: jdText.length,
+      url: activePage.url()
+    };
+  }
+
   const server = http.createServer(async (req, res) => {
     try {
       if (req.method === "GET" && req.url === "/") {
@@ -277,6 +323,26 @@ export function createDashboardServer(options = {}) {
         } finally {
           applyInflight.delete(job.id);
         }
+        return;
+      }
+      if (req.method === "POST" && req.url === "/api/apply/current-resume") {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        const { sessionId, jobId } = JSON.parse(body || "{}");
+        const session = applySessions.get(sessionId || jobId);
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: "没有打开的投递会话，请重新点击去投递" }));
+          return;
+        }
+        const out = await generateResumeFromCurrentPage(session);
+        if (out?.error) {
+          res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: out.error }));
+          return;
+        }
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(out));
         return;
       }
       if (req.method === "POST" && req.url === "/api/apply/refill") {

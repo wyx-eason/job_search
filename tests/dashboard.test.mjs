@@ -402,6 +402,130 @@ test("按岗位重新生成简历接口：无会话时返回 404", async (t) => 
   assert.equal(res.status, 404);
 });
 
+test("current-resume 无会话时返回 404", async (t) => {
+  const url = await withServer(t);
+  const res = await fetch(`${url}/api/apply/current-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId: "no-session" })
+  });
+  assert.equal(res.status, 404);
+});
+
+test("current-resume 当前页不是 JD 页时返回 400", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-current-resume-bad-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([
+    {
+      source: "qqdocs",
+      source_job_id: "CUR1",
+      company: "测试公司",
+      title: "产品开发类、研发类、职能类",
+      city: "西安",
+      description: "2027 届秋招",
+      posting_url: "https://app.mokahr.com/campus_apply/test/cur#/jobs"
+    }
+  ]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  const fakeAssistant = {
+    result: { formFields: [], filled: [], skippedSensitive: [], skippedUnknown: [], note: "手动模式", navigation: { matched: false, log: [] } },
+    page: { isClosed: () => false },
+    context: { close: async () => {} },
+    watcher: { stop: () => {} }
+  };
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    applyAssistant: async () => fakeAssistant,
+    locateActivePage: async () => ({ isClosed: () => false, url: () => "https://example.test/jobs" }),
+    readPageText: async () => "职位列表\n搜索职位关键词"
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  await fetch(`${url}/api/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId })
+  });
+  const res = await fetch(`${url}/api/apply/current-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: jobId })
+  });
+  assert.equal(res.status, 400);
+  const data = await res.json();
+  assert.match(data.error, /JD 页/);
+});
+
+test("current-resume 对 JD 页生成申请包并记录会话", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-current-resume-ok-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([
+    {
+      source: "qqdocs",
+      source_job_id: "CUR2",
+      company: "测试公司",
+      title: "产品开发类、研发类、职能类",
+      city: "西安",
+      description: "2027 届秋招",
+      posting_url: "https://app.mokahr.com/campus_apply/test/cur2#/jobs"
+    }
+  ]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  const pkgDir = path.join(path.resolve("output/applications"), `current-resume-test-${Date.now()}`);
+  fs.mkdirSync(pkgDir, { recursive: true });
+  fs.writeFileSync(path.join(pkgDir, "resume.pdf"), "%PDF-1.4 fake", "utf8");
+  t.after(() => fs.rmSync(pkgDir, { recursive: true, force: true }));
+  const fakeAssistant = {
+    result: { formFields: [], filled: [], skippedSensitive: [], skippedUnknown: [], note: "手动模式", navigation: { matched: false, log: [] } },
+    page: { isClosed: () => false },
+    context: { close: async () => {} },
+    watcher: { stop: () => {}, setResumePdfPath: () => {} }
+  };
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    applyAssistant: async () => fakeAssistant,
+    locateActivePage: async () => ({ isClosed: () => false, url: () => "https://example.test/jobs/42/detail" }),
+    readPageText: async () => "AI应用工程师\n岗位职责：负责大模型应用开发与 RAG 检索。\n任职要求：熟悉 Python 与 Agent。",
+    generatePackage: async () => ({
+      packagePath: pkgDir,
+      files: ["resume.pdf"],
+      qa: { ok: true, issues: [] },
+      polish: null
+    })
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  await fetch(`${url}/api/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId })
+  });
+  const res = await fetch(`${url}/api/apply/current-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: jobId })
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.packagePath, pkgDir);
+  assert.equal(data.qa.ok, true);
+  assert.equal(data.jobTitle, "AI应用工程师");
+});
+
 test("投递会话状态接口返回未打开会话", async (t) => {
   const url = await withServer(t);
   const res = await fetch(`${url}/api/apply/status?jobId=none`);
