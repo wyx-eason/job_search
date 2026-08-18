@@ -86,3 +86,40 @@ test("追加“标记已投递”按钮后，“按当前页面生成简历”�
   await page.waitForFunction(() => document.getElementById("applyStatus").textContent.includes("已对当前页面填表"), null, { timeout: 8000 });
   assert.equal(refillHits, 1);
 });
+
+test("投递周报显示已投递公司列表且默认折叠", async (t) => {
+  const { jobId } = await withUiServer(t);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-ui-applied-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const raw = JSON.parse(fs.readFileSync(path.resolve("examples/jobs.fixture.json"), "utf8"));
+  const jobs = mergeJobs(raw);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const row = store.listJobs({}).find((r) => r.id === jobId);
+  store.updateJobStatus(row.id, "interview");
+  store.db.prepare("INSERT INTO applications (job_id, package_path, status, applied_at) VALUES (?,?,?,?)").run(row.id, "pkg", "interview", "2026-08-10T00:00:00.000Z");
+  store.close();
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0
+  });
+  const uiUrl = await server.listen();
+  t.after(() => server.close());
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "ui-applied-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(uiUrl);
+  await page.waitForSelector("#appliedJobsWrap");
+  await page.waitForFunction(() => document.getElementById("appliedJobsCount")?.textContent.includes("1"), null, { timeout: 8000 });
+  assert.equal(await page.isVisible("#appliedJobs"), false);
+  await page.click("#appliedJobsWrap .sec-head");
+  assert.equal(await page.isVisible("#appliedJobs"), true);
+  assert.match(await page.textContent("#appliedJobs"), /示例 AI 公司/);
+});

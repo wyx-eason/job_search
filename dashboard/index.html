@@ -28,6 +28,27 @@
   .danger-btn { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
   .danger-btn:hover { background: #fecaca; }
   .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .collapsible .sec-head { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
+  .collapsible .arrow { display: inline-block; width: 14px; color: #6b7280; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 14px; padding: 3px 10px; font-size: 12px; }
+  .chip b { margin-left: 4px; }
+  .sub-collapsible { margin-top: 12px; border-top: 1px dashed #e5e7eb; padding-top: 8px; }
+  .sub-collapsible .sec-head { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 0 0 6px; }
+  .status-badge { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1px 8px; font-size: 12px; color: #4b5563; white-space: nowrap; }
+  .status-select { font-size: 12px; padding: 1px 4px; border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #222; }
+  .urgent td { background: #fef2f2; }
+  .deadline-tag { color: #b91c1c; font-weight: 600; font-size: 12px; margin-right: 4px; }
+  .new-tag { color: #047857; font-weight: 600; font-size: 12px; }
+  .star-btn { border: 0; background: none; cursor: pointer; font-size: 15px; padding: 0 2px; color: #d1d5db; }
+  .star-btn.on { color: #f59e0b; }
+  .gen-btn { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+  .gen-btn:hover { background: #e0e7ff; }
+  .badge.dir-ai { background: #dbeafe; color: #1e40af; }
+  .badge.dir-adas { background: #ede9fe; color: #5b21b6; }
+  .badge.dir-softdev { background: #dcfce7; color: #166534; }
+  .badge.dir-agent { background: #ffedd5; color: #9a3412; }
+  .badge.dir-other { background: #f3f4f6; color: #4b5563; }
   .modal-mask { position: fixed; inset: 0; background: rgba(17, 24, 39, .45); z-index: 1000; display: none; align-items: center; justify-content: center; }
   .modal-mask.show { display: flex; }
   .modal-panel { background: #fff; width: min(940px, 95vw); height: 92vh; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
@@ -57,53 +78,73 @@
     <div class="card"><h3>已登记来源</h3><div class="num" id="sourceCount">-</div></div>
   </div>
 
-  <section><h2>临汾周边</h2><ul id="linfen_area"></ul></section>
-  <section><h2>西安重点</h2><ul id="xian_core"></ul></section>
-  <section><h2>大城市练手</h2><ul id="practice_city"></ul></section>
-  <section><h2>待确认</h2><ul id="needs_confirmation"></ul></section>
-
-  <section>
-    <h2>全部岗位</h2>
-    <div class="filters">
-      <label><input type="checkbox" id="onlyEligible" checked> 只看符合资格</label>
-      <select id="filterCity">
-        <option value="">全部城市</option>
-        <option value="西安">西安</option>
-        <option value="临汾">临汾</option>
-        <option value="其他">其他城市</option>
-      </select>
-      <select id="filterSource"><option value="">全部来源</option></select>
-      <input id="filterKeyword" type="search" placeholder="关键词（公司/岗位）">
-      <input id="filterMinScore" type="number" min="0" placeholder="最低评分">
-      <span id="filterCount" class="muted"></span>
+  <section class="collapsible" data-key="weekly">
+    <h2 class="sec-head"><span class="arrow">▾</span>投递周报</h2>
+    <div class="sec-body">
+      <div class="chips" id="weeklyStats"></div>
+      <div class="sub-collapsible" id="appliedJobsWrap" data-key="applied_jobs" hidden>
+        <h3 class="sec-head"><span class="arrow">▸</span>已投递公司 <span id="appliedJobsCount" class="muted"></span></h3>
+        <div class="sec-body" id="appliedJobs"></div>
+      </div>
     </div>
-    <table>
-      <thead><tr><th>公司</th><th>岗位</th><th>城市</th><th>评分</th><th>资格状态</th><th>来源</th><th>链接</th></tr></thead>
-      <tbody id="allJobs"></tbody>
-    </table>
   </section>
 
-  <section>
-    <h2>投递状态</h2>
-    <div class="stats" id="statusChips"></div>
-    <label class="muted"><input type="checkbox" id="showDiscovered"> 显示未处理（已发现）岗位</label>
-    <table>
-      <thead><tr><th>公司</th><th>岗位</th><th>状态</th><th>操作</th></tr></thead>
-      <tbody id="statusJobs"></tbody>
-    </table>
+  <section class="collapsible" data-key="linfen_area">
+    <h2 class="sec-head"><span class="arrow">▾</span>临汾周边 <span class="muted" data-count="linfen_area"></span></h2>
+    <div class="sec-body"><ul id="linfen_area"></ul></div>
+  </section>
+  <section class="collapsible" data-key="xian_core">
+    <h2 class="sec-head"><span class="arrow">▾</span>西安重点 <span class="muted" data-count="xian_core"></span></h2>
+    <div class="sec-body"><ul id="xian_core"></ul></div>
+  </section>
+  <section class="collapsible" data-key="practice_city">
+    <h2 class="sec-head"><span class="arrow">▾</span>大城市练手 <span class="muted" data-count="practice_city"></span></h2>
+    <div class="sec-body"><ul id="practice_city"></ul></div>
+  </section>
+  <section class="collapsible" data-key="needs_confirmation">
+    <h2 class="sec-head"><span class="arrow">▾</span>待确认 <span class="muted" data-count="needs_confirmation"></span></h2>
+    <div class="sec-body"><ul id="needs_confirmation"></ul></div>
   </section>
 
-  <section>
-    <h2>来源健康</h2>
-    <table>
-      <thead><tr><th>名称</th><th>类型</th><th>状态</th></tr></thead>
-      <tbody id="sources"></tbody>
-    </table>
+  <section class="collapsible" data-key="all_jobs">
+    <h2 class="sec-head"><span class="arrow">▾</span>全部岗位（可投） <span class="muted" data-count="visible_jobs"></span></h2>
+    <div class="sec-body">
+      <div class="chips" id="statusChips"></div>
+      <div class="filters">
+        <label><input type="checkbox" id="onlyEligible" checked> 只看符合资格</label>
+        <select id="filterCity">
+          <option value="">全部城市</option>
+          <option value="西安">西安</option>
+          <option value="临汾">临汾</option>
+          <option value="其他">其他城市</option>
+        </select>
+        <select id="filterSource"><option value="">全部来源</option></select>
+        <select id="filterDirection"><option value="">全部方向</option><option value="ai">AI 应用</option><option value="adas">ADAS</option><option value="softdev">C++ 软开</option><option value="agent">Agent</option><option value="other">其他</option></select>
+        <label><input type="checkbox" id="onlyStarred"> 只看星标</label>
+        <input id="filterKeyword" type="search" placeholder="关键词（公司/岗位）">
+        <input id="filterMinScore" type="number" min="0" placeholder="最低评分">
+        <span id="filterCount" class="muted"></span>
+      </div>
+      <table>
+        <thead><tr><th>公司</th><th>岗位</th><th>城市</th><th>评分</th><th>资格</th><th>方向</th><th>状态</th><th>来源</th><th>链接</th></tr></thead>
+        <tbody id="allJobs"></tbody>
+      </table>
+    </div>
   </section>
 
-  <section>
-    <h2>已屏蔽公司 <span id="blockedCount" class="muted"></span></h2>
-    <ul id="blockedCompanies"><li class="muted">无</li></ul>
+  <section class="collapsible" data-key="sources">
+    <h2 class="sec-head"><span class="arrow">▾</span>来源健康</h2>
+    <div class="sec-body">
+      <table>
+        <thead><tr><th>名称</th><th>类型</th><th>状态</th></tr></thead>
+        <tbody id="sources"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="collapsible" data-key="blocked">
+    <h2 class="sec-head"><span class="arrow">▾</span>已屏蔽公司 <span id="blockedCount" class="muted"></span></h2>
+    <div class="sec-body"><ul id="blockedCompanies"><li class="muted">无</li></ul></div>
   </section>
 </main>
 <div class="modal-mask" id="previewModal">
@@ -221,6 +262,120 @@ const badge = (s) => {
   if (s === "eligible") return '<span class="badge">符合</span>';
   return `<span class="badge">${esc(s)}</span>`;
 };
+const FLOW = ["discovered", "shortlisted", "resume_generated", "ready_for_review", "applied", "assessment", "interview", "offer"];
+const TERMINAL = ["rejected", "withdrawn", "expired", "discarded"];
+const LABELS = {
+  discovered: "已发现", shortlisted: "已入选择", resume_generated: "已生成简历", ready_for_review: "待检查",
+  applied: "已投递", assessment: "测评中", interview: "面试中", offer: "Offer",
+  rejected: "已拒绝", withdrawn: "已撤回", expired: "已过期", discarded: "已丢弃"
+};
+const KEY_STATUSES = ["applied", "assessment", "interview", "offer", "rejected", "withdrawn"];
+const POOL_EMPTY = {
+  linfen_area: "当前接入来源暂无临汾周边（150km）岗位；如需覆盖，可接入临汾/山西本地招聘源",
+  xian_core: "暂无西安岗位",
+  practice_city: "暂无其他城市岗位",
+  needs_confirmation: "无待确认岗位"
+};
+const DEFAULT_COLLAPSED = { weekly: false, applied_jobs: true, linfen_area: false, xian_core: false, practice_city: true, needs_confirmation: true, all_jobs: true, sources: true, blocked: false };
+function allowedStatuses(s) {
+  if (TERMINAL.includes(s)) return [];
+  const out = [];
+  const i = FLOW.indexOf(s);
+  if (i >= 0 && i < FLOW.length - 1) out.push(FLOW[i + 1]);
+  if (i >= 0 && i < FLOW.indexOf("applied")) out.push("applied");
+  out.push(...TERMINAL);
+  return [...new Set(out)];
+}
+function statusSelectHtml(j) {
+  const allowed = allowedStatuses(j.status);
+  const opts = [`<option value="${esc(j.status)}" selected>${LABELS[j.status] || esc(j.status)}</option>`];
+  for (const s of allowed) opts.push(`<option value="${esc(s)}">${LABELS[s]}</option>`);
+  return `<select class="status-select" data-id="${esc(j.id)}">${opts.join("")}</select>`;
+}
+async function setStatus(jobId, status) {
+  const statusEl = document.getElementById("applyStatus");
+  const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status })
+  });
+  const data = await readJson(res);
+  if (!res.ok) { statusEl.textContent = "状态更新失败：" + (data.error || res.status); return; }
+  statusEl.textContent = "状态已更新：" + (LABELS[data.to] || data.to);
+  main();
+}
+function bindStatusSelects() {
+  document.querySelectorAll(".status-select").forEach((sel) => {
+    if (sel.dataset.bound) return;
+    sel.dataset.bound = "1";
+    sel.addEventListener("change", () => setStatus(sel.dataset.id, sel.value));
+  });
+}
+function initCollapse() {
+  document.querySelectorAll(".collapsible, .sub-collapsible").forEach((sec) => {
+    const key = sec.dataset.key;
+    const head = sec.querySelector(".sec-head");
+    const body = sec.querySelector(".sec-body");
+    const arrow = head.querySelector(".arrow");
+    const saved = localStorage.getItem("collapse_" + key);
+    let collapsed = saved === null ? Boolean(DEFAULT_COLLAPSED[key]) : saved === "1";
+    const apply = () => {
+      body.style.display = collapsed ? "none" : "";
+      arrow.textContent = collapsed ? "▸" : "▾";
+    };
+    apply();
+    head.addEventListener("click", () => {
+      collapsed = !collapsed;
+      localStorage.setItem("collapse_" + key, collapsed ? "1" : "0");
+      apply();
+    });
+  });
+}
+initCollapse();
+const TODAY = new Date().toISOString().slice(0, 10);
+const STAR_KEY = "starredJobs";
+function getStars() { try { return new Set(JSON.parse(localStorage.getItem(STAR_KEY) || "[]")); } catch { return new Set(); } }
+function saveStars(set) { localStorage.setItem(STAR_KEY, JSON.stringify([...set])); }
+function urgent(j) {
+  if (!j.deadline) return false;
+  const d = new Date(String(j.deadline).replace(/-/g, "/")).getTime();
+  if (!Number.isFinite(d)) return false;
+  const now = Date.now();
+  return d >= now - 86400000 && d <= now + 7 * 86400000;
+}
+function newTag(j) { return (j.first_seen_at || "").slice(0, 10) === TODAY ? '<span class="new-tag">新</span>' : ""; }
+function starBtn(j) { const on = getStars().has(j.id); return `<button class="star-btn${on ? " on" : ""}" data-star="${esc(j.id)}" title="星标置顶">${on ? "★" : "☆"}</button>`; }
+function dirBadge(j) { const cls = ["ai", "adas", "softdev", "agent"].includes(j.direction) ? j.direction : "other"; return `<span class="badge dir-${cls}">${esc(j.direction_label)}</span>`; }
+function genBtn(j) { const base = ["ai", "adas", "softdev", "agent"].includes(j.direction) ? j.direction : "auto"; return `<button class="gen-btn" data-gen="${esc(j.id)}" data-base="${base}">生成简历</button>`; }
+function bindRowActions() {
+  document.querySelectorAll(".star-btn").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => {
+      const set = getStars();
+      if (set.has(btn.dataset.star)) set.delete(btn.dataset.star); else set.add(btn.dataset.star);
+      saveStars(set);
+      main();
+    });
+  });
+  document.querySelectorAll(".gen-btn").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", async () => {
+      const status = document.getElementById("applyStatus");
+      status.textContent = "正在按基类生成简历…（LLM 润色约 10-60 秒，请稍候）";
+      const res = await fetch(`/api/jobs/${encodeURIComponent(btn.dataset.gen)}/generate-resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base: btn.dataset.base })
+      });
+      const data = await readJson(res);
+      if (!res.ok) { status.textContent = "生成失败：" + (data.error || res.status); return; }
+      status.textContent = `已生成（QA ${data.qa?.ok ? "通过" : "有问题"}）：${data.packagePath}`;
+      showPreview(data.packagePath);
+    });
+  });
+}
 
 async function main() {
   const data = await (await fetch("/api/dashboard")).json();
@@ -230,16 +385,44 @@ async function main() {
   document.getElementById("excluded").textContent = data.excluded;
   document.getElementById("sourceCount").textContent = data.sources.length;
 
-  for (const [pool, emptyText] of [
-    ["linfen_area", "今日无新增"],
-    ["xian_core", "今日无新增"],
-    ["practice_city", "今日无新增"],
-    ["needs_confirmation", "今日无新增"]
-  ]) {
+  for (const pool of ["linfen_area", "xian_core", "practice_city", "needs_confirmation"]) {
     const list = data.pools[pool] || [];
+    const countEl = document.querySelector(`[data-count="${pool}"]`);
+    if (countEl) countEl.textContent = list.length ? `（${list.length}）` : "";
     const el = document.getElementById(pool);
-    if (!list.length) { el.innerHTML = `<li class="muted">${emptyText}</li>`; continue; }
-    el.innerHTML = list.map((j) => `<li><span>${esc(j.company)} · ${esc(j.title)} · ${esc(j.city || "地点未知")}${j.score ? ` · 评分 ${j.score.total}` : ""}</span><span>${link(j)} <button class="apply-btn" data-id="${esc(j.id)}">去投递</button> <button class="danger-btn del-company-btn" data-company="${esc(j.company)}">删除公司</button></span></li>`).join("");
+    if (!list.length) { el.innerHTML = `<li class="muted">${POOL_EMPTY[pool]}</li>`; continue; }
+    el.innerHTML = list.map((j) => `<li class="${urgent(j) ? "urgent" : ""}"><span>${starBtn(j)} ${esc(j.company)} · ${esc(j.title)} · ${esc(j.city || "地点未知")}${j.score ? ` · 评分 ${j.score.total}` : ""} ${newTag(j)}</span><span>${statusSelectHtml(j)} ${genBtn(j)} ${link(j)} <button class="apply-btn" data-id="${esc(j.id)}">去投递</button> <button class="danger-btn del-company-btn" data-company="${esc(j.company)}">删除公司</button></span></li>`).join("");
+  }
+  bindStatusSelects();
+  bindRowActions();
+  const visibleCountEl = document.querySelector('[data-count="visible_jobs"]');
+  if (visibleCountEl) visibleCountEl.textContent = data.visibleJobs ? `（${data.visibleJobs}）` : "";
+  document.getElementById("statusChips").innerHTML = KEY_STATUSES
+    .map((s) => `<span class="chip">${LABELS[s]}<b>${data.statusCounts[s] || 0}</b></span>`)
+    .join("");
+  const w = data.weekly;
+  const dirChips = Object.entries(w.byDirection || {})
+    .map(([k, v]) => `<span class="chip">${esc(k)}<b>${v}</b></span>`)
+    .join("");
+  document.getElementById("weeklyStats").innerHTML =
+    `<span class="chip">本周投递<b>${w.weekApplied}</b></span>` +
+    `<span class="chip">累计投递<b>${w.totalApplied}</b></span>` +
+    `<span class="chip">回音率<b>${w.responseRate}%</b></span>` +
+    `<span class="chip">已投递<b>${w.funnel.applied}</b></span>` +
+    `<span class="chip">测评中<b>${w.funnel.assessment}</b></span>` +
+    `<span class="chip">面试中<b>${w.funnel.interview}</b></span>` +
+    `<span class="chip">Offer<b>${w.funnel.offer}</b></span>` +
+    (dirChips ? `<span class="chip" style="margin-left:6px;">方向分布：</span>${dirChips}` : "");
+  const appliedWrap = document.getElementById("appliedJobsWrap");
+  const appliedList = data.weekly.appliedJobs || [];
+  if (!appliedList.length) {
+    appliedWrap.hidden = true;
+  } else {
+    appliedWrap.hidden = false;
+    document.getElementById("appliedJobsCount").textContent = `（${appliedList.length}）`;
+    document.getElementById("appliedJobs").innerHTML = appliedList
+      .map((a) => `<li><span>${esc(a.company)} · ${esc(a.title)} · ${esc(a.city || "地点未知")} · ${new Date(a.appliedAt).toLocaleDateString("zh-CN")}</span><span class="status-badge">${esc(a.statusLabel)}</span></li>`)
+      .join("");
   }
 
   const ALL_JOBS = data.jobs;
@@ -248,14 +431,24 @@ async function main() {
     '<option value="">全部来源</option>' + sourceOptions.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
   const linkType = (j) => (j.source === "yunjiuye" ? "岗位级" : "公司级");
   function renderJobsTable(list) {
-    document.getElementById("allJobs").innerHTML = list.map((j) =>
-    `<tr><td>${esc(j.company)}</td><td>${esc(j.title)}</td><td>${esc(j.city || "-")}</td><td>${j.score ? j.score.total : "-"}</td><td>${badge(j.eligibility_status)}</td><td>${esc(j.source)}</td><td><span class="muted">[${linkType(j)}]</span> ${link(j)} <button class="apply-btn" data-id="${esc(j.id)}">去投递</button> <button class="danger-btn del-company-btn" data-company="${esc(j.company)}">删除公司</button></td></tr>`
+    const sorted = [...list].sort((a, b) => {
+      const rank = (j) => (getStars().has(j.id) ? 2 : 0) + (urgent(j) ? 1 : 0);
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return rb - ra;
+      return (b.score?.total || 0) - (a.score?.total || 0);
+    });
+    document.getElementById("allJobs").innerHTML = sorted.map((j) =>
+    `<tr class="${urgent(j) ? "urgent" : ""}"><td>${starBtn(j)} ${esc(j.company)}</td><td>${esc(j.title)} ${newTag(j)}</td><td>${esc(j.city || "-")}</td><td>${j.score ? j.score.total : "-"}</td><td>${badge(j.eligibility_status)}</td><td>${dirBadge(j)}</td><td>${statusSelectHtml(j)}</td><td>${esc(j.source)}</td><td>${urgent(j) ? `<span class="deadline-tag">${esc(j.deadline)}截止</span>` : ""}${link(j)} ${genBtn(j)} <button class="apply-btn" data-id="${esc(j.id)}">去投递</button> <button class="danger-btn del-company-btn" data-company="${esc(j.company)}">删除公司</button></td></tr>`
     ).join("");
+    bindStatusSelects();
+    bindRowActions();
   }
   function applyFilters() {
     const onlyEligible = document.getElementById("onlyEligible").checked;
     const city = document.getElementById("filterCity").value;
     const source = document.getElementById("filterSource").value;
+    const direction = document.getElementById("filterDirection").value;
+    const onlyStarred = document.getElementById("onlyStarred").checked;
     const keyword = document.getElementById("filterKeyword").value.trim().toLowerCase();
     const minScore = Number(document.getElementById("filterMinScore").value || 0);
     let list = ALL_JOBS;
@@ -267,13 +460,17 @@ async function main() {
       });
     }
     if (source) list = list.filter((j) => j.source === source);
+    if (direction) {
+      list = list.filter((j) => direction === "other" ? !["ai", "adas", "softdev", "agent"].includes(j.direction) : j.direction === direction);
+    }
+    if (onlyStarred) list = list.filter((j) => getStars().has(j.id));
     if (keyword) list = list.filter((j) => `${j.company} ${j.title}`.toLowerCase().includes(keyword));
     if (minScore > 0) list = list.filter((j) => (j.score?.total || 0) >= minScore);
     renderJobsTable(list);
     document.getElementById("filterCount").textContent = `共 ${list.length} 条`;
     bindApplyButtons();
   }
-  ["onlyEligible", "filterCity", "filterSource", "filterKeyword", "filterMinScore"].forEach((id) => {
+  ["onlyEligible", "filterCity", "filterSource", "filterDirection", "onlyStarred", "filterKeyword", "filterMinScore"].forEach((id) => {
     document.getElementById(id).addEventListener(id === "filterKeyword" ? "input" : "change", applyFilters);
   });
   applyFilters();
@@ -329,7 +526,7 @@ async function main() {
             : "公司级岗位：选定具体岗位后会自动生成并上传该岗位的定制简历（当前未生成，避免出现多份简历）。";
           status.textContent = `已打开投递页（浏览器），投递会话已建立。请按顺序操作：① 在浏览器里登录并打开你想投的具体岗位 JD 页；② 回到本页点“按当前页面生成简历”；③ 在浏览器里点投递进入申请表单；④ 回到本页点“填表（当前页面）”自动填写。${navLog ? "导航：" + navLog + "。" : ""}${data.note || ""}助手不会点提交。`;
           const actions = document.getElementById("applyActions");
-          actions.innerHTML = `${data.packagePath ? `<button class="apply-btn" id="previewResumeBtn">预览简历</button><button class="apply-btn" id="openPackageBtn">打开申请包目录</button>` : ""}<button class="apply-btn" id="regenBtn">按当前页面生成简历</button><button class="apply-btn" id="refillBtn">填表（当前页面）</button>`;
+          actions.innerHTML = `${data.packagePath ? `<button class="apply-btn" id="previewResumeBtn">预览简历</button><button class="apply-btn" id="openPackageBtn">打开申请包目录</button>` : ""}<label class="muted" style="display:inline-flex;align-items:center;gap:4px;">基类<select id="baseSelect"><option value="auto">自动判断</option><option value="ai">AI 应用</option><option value="adas">ADAS·控制</option><option value="softdev">C++ 软开</option><option value="agent">Agent</option></select></label><button class="apply-btn" id="regenBtn">按当前页面生成简历</button><button class="apply-btn" id="refillBtn">填表（当前页面）</button>`;
           if (data.packagePath) {
             previewBtn = document.getElementById("previewResumeBtn");
             previewBtn.addEventListener("click", () => showPreview(previewBtn.dataset.path || data.packagePath));
@@ -358,7 +555,7 @@ async function main() {
             const res = await fetch("/api/apply/current-resume", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId: data.sessionId })
+              body: JSON.stringify({ sessionId: data.sessionId, base: document.getElementById("baseSelect").value })
             });
             const regen = await readJson(res);
             if (!res.ok) { status.textContent = "生成失败：" + (regen.error || res.status); return; }
@@ -415,55 +612,6 @@ async function main() {
     });
   }
 
-  const FLOW = ["discovered", "shortlisted", "resume_generated", "ready_for_review", "applied", "assessment", "interview", "offer"];
-  const TERMINAL = ["rejected", "withdrawn", "expired", "discarded"];
-  const LABELS = {
-    discovered: "已发现", shortlisted: "已入选择", resume_generated: "已生成简历", ready_for_review: "待检查",
-    applied: "已投递", assessment: "测评中", interview: "面试中", offer: "Offer",
-    rejected: "已拒绝", withdrawn: "已撤回", expired: "已过期", discarded: "已丢弃"
-  };
-  const nextStatus = (s) => {
-    const i = FLOW.indexOf(s);
-    return i >= 0 && i < FLOW.length - 1 ? FLOW[i + 1] : null;
-  };
-  async function setStatus(jobId, status) {
-    const statusEl = document.getElementById("applyStatus");
-    const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status })
-    });
-    const data = await readJson(res);
-    if (!res.ok) { statusEl.textContent = "状态更新失败：" + (data.error || res.status); return; }
-    statusEl.textContent = "状态已更新：" + (LABELS[data.to] || data.to);
-    main();
-  }
-  const KEY_STATUSES = ["applied", "assessment", "interview", "offer", "rejected", "withdrawn"];
-  document.getElementById("statusChips").innerHTML = KEY_STATUSES
-    .map((s) => `<div class="card"><h3>${LABELS[s]}</h3><div class="num">${data.statusCounts[s] || 0}</div></div>`)
-    .join("");
-  function renderStatusTable(includeDiscovered) {
-    const list = data.jobs.filter((j) => includeDiscovered || j.status !== "discovered");
-    if (!list.length) {
-      document.getElementById("statusJobs").innerHTML = `<tr><td colspan="4" class="muted">还没有已处理的岗位（点“标记已投递”或勾选下方“显示未处理”后手动标记）</td></tr>`;
-      return;
-    }
-    document.getElementById("statusJobs").innerHTML = list.map((j) => {
-      const next = nextStatus(j.status);
-      const buttons = [];
-      if (next) buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="${next}">→ ${LABELS[next]}</button>`);
-      if (!TERMINAL.includes(j.status)) {
-        buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="rejected">拒绝</button>`);
-        buttons.push(`<button class="status-btn" data-set="${esc(j.id)}" data-status="withdrawn">撤回</button>`);
-      }
-      return `<tr><td>${esc(j.company)}</td><td>${esc(j.title)}</td><td>${LABELS[j.status] || esc(j.status)}</td><td>${buttons.join(" ")}</td></tr>`;
-    }).join("");
-    document.querySelectorAll("[data-set]").forEach((btn) =>
-      btn.addEventListener("click", () => setStatus(btn.dataset.set, btn.dataset.status))
-    );
-  }
-  renderStatusTable(false);
-  document.getElementById("showDiscovered").addEventListener("change", (e) => renderStatusTable(e.target.checked));
 }
 
 main().catch((e) => { document.getElementById("generatedAt").textContent = "加载失败：" + e.message; });
