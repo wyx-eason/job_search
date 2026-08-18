@@ -52,7 +52,9 @@ test("仪表盘接口返回三个排序池、待确认列表、全部岗位和�
   const data = await res.json();
   assert.equal(data.totalJobs, 3);
   assert.equal(data.excluded, 1);
-  assert.equal(data.jobs.length, 3);
+  assert.equal(data.visibleJobs, 2);
+  assert.equal(data.jobs.length, 2);
+  assert.ok(data.jobs.every((j) => j.eligibility_status !== "excluded"), "已排除（实习/社招等）岗位不应下发到列表");
   assert.equal(data.sources.length, 12);
   assert.deepEqual(
     data.pools.linfen_area.map((j) => j.title),
@@ -65,6 +67,44 @@ test("仪表盘接口返回三个排序池、待确认列表、全部岗位和�
   assert.deepEqual(data.pools.practice_city, []);
   assert.deepEqual(data.pools.needs_confirmation, []);
   assert.ok(data.jobs.filter((j) => j.score && typeof j.score.total === "number").length >= 2);
+});
+
+test("仪表盘接口返回活跃已投递列表且终态不显示", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-applied-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  store.upsertJobs(fixture());
+  const rows = store.listJobs({});
+  const ai = rows.find((r) => r.company === "示例 AI 公司");
+  const ctrl = rows.find((r) => r.company === "临汾示例制造企业");
+  const intern = rows.find((r) => r.company === "示例公司");
+  store.updateJobStatus(ai.id, "interview");
+  store.updateJobStatus(ctrl.id, "applied");
+  store.updateJobStatus(intern.id, "rejected");
+  store.db.prepare("INSERT INTO applications (job_id, package_path, status, applied_at) VALUES (?,?,?,?)").run(ai.id, "pkg-a", "interview", "2026-08-10T00:00:00.000Z");
+  store.db.prepare("INSERT INTO applications (job_id, package_path, status, applied_at) VALUES (?,?,?,?)").run(ctrl.id, "pkg-b", "applied", "2026-08-12T00:00:00.000Z");
+  store.db.prepare("INSERT INTO applications (job_id, package_path, status, applied_at) VALUES (?,?,?,?)").run(intern.id, "pkg-c", "rejected", "2026-08-13T00:00:00.000Z");
+  store.close();
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  const data = await (await fetch(`${url}/api/dashboard`)).json();
+  assert.deepEqual(data.weekly.appliedJobs.map((j) => j.jobId), [ctrl.id, ai.id]);
+  assert.equal(data.weekly.appliedJobs[0].company, "临汾示例制造企业");
+  assert.equal(data.weekly.appliedJobs[0].statusLabel, "已投递");
+  assert.equal(data.weekly.appliedJobs[1].statusLabel, "面试中");
+  assert.equal(data.weekly.appliedJobs.some((j) => j.jobId === intern.id), false);
+});
+
+test("仪表盘接口无投递时 appliedJobs 为空数组", async (t) => {
+  const url = await withServer(t);
+  const data = await (await fetch(`${url}/api/dashboard`)).json();
+  assert.deepEqual(data.weekly.appliedJobs, []);
 });
 
 test("仪表盘投递接口对不存在的岗位返回 404", async (t) => {
@@ -309,6 +349,54 @@ test("投递状态接口：合法流转更新状态，非法流转报错", async
     body: JSON.stringify({ status: "interview" })
   });
   assert.equal(bad.status, 400);
+});
+
+test("按基类生成简历接口：把 base 传给生成器并返回申请包", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-gen-resume-"));
+  const dbPath = path.join(dir, "jobs.db");
+  const store = openStore(dbPath);
+  const jobs = mergeJobs([{
+    source: "qqdocs",
+    source_job_id: "GEN1",
+    company: "测试公司",
+    title: "AI 应用工程师",
+    city: "西安",
+    description: "2027 届秋招",
+    posting_url: "https://app.mokahr.com/campus_apply/test/gen1#/jobs"
+  }]);
+  for (const job of jobs) job.eligibility = classifyEligibility(job);
+  store.upsertJobs(jobs);
+  const jobId = store.listJobs()[0].id;
+  store.close();
+  let captured = null;
+  const server = createDashboardServer({
+    dbPath,
+    preferencesPath: path.resolve("candidate/preferences.json"),
+    sourcesPath: path.resolve("config/sources.json"),
+    port: 0,
+    generatePackage: async (opts) => {
+      captured = opts;
+      return { packagePath: "E:/tmp/pkg", files: ["resume.pdf"], qa: { ok: true, issues: [] }, polish: null };
+    }
+  });
+  const url = await server.listen();
+  t.after(() => server.close());
+  const res = await fetch(`${url}/api/jobs/${jobId}/generate-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base: "adas" })
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.packagePath, "E:/tmp/pkg");
+  assert.equal(captured.base, "adas");
+  assert.equal(captured.job.id, jobId);
+  const missing = await fetch(`${url}/api/jobs/nope/generate-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base: "auto" })
+  });
+  assert.equal(missing.status, 404);
 });
 
 test("打开申请包接口拒绝越权路径", async (t) => {
