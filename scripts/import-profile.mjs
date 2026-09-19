@@ -6,6 +6,12 @@ const root = path.resolve(import.meta.dirname, "..");
 const profileDir = path.resolve(root, "../profile");
 const files = ["agent_llm_general_2026.tex", "integration_adas_2026.tex"];
 
+// 原始 LaTeX 简历可能已归档到 profile/_latex_archive 下，两处都查找。
+function findSource(dir, file) {
+  const candidates = [path.join(dir, file), path.join(dir, "_latex_archive", file)];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
+
 function stripLatex(text) {
   return text
     .replace(/%.*$/gm, "")
@@ -51,8 +57,12 @@ function writeQuestions(facts, outputDir) {
 export function runImport({ profileDir, outputDir }) {
   const allFacts = [];
   for (const file of files) {
-    const fullPath = path.join(profileDir, file);
-    if (!fs.existsSync(fullPath)) throw new Error(`缺少原始简历: ${fullPath}`);
+    const fullPath = findSource(profileDir, file);
+    if (!fullPath) {
+      throw new Error(
+        `缺少原始简历: ${path.join(profileDir, file)}（也已查找 ${path.join(profileDir, "_latex_archive", file)}）`
+      );
+    }
     allFacts.push(...extract(fs.readFileSync(fullPath, "utf8"), file));
   }
   writeFacts(allFacts, outputDir);

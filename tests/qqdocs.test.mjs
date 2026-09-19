@@ -5,6 +5,9 @@ import path from "node:path";
 import { parseQqdocsSheet, qqdocsRowsToJobs } from "../lib/adapters/qqdocs.mjs";
 import { mergeJobs, classifyEligibility } from "../lib/job-contract.mjs";
 
+// 固定判定基准时间，避免截止日期随真实日期推移导致用例失稳。
+const now = new Date("2026-08-01T00:00:00Z");
+
 test("腾讯文档智能表格解出字段化行数据", () => {
   const fixture = fs.readFileSync(path.resolve("tests/fixtures/qqdocs-sheet.json"), "utf8");
   const rows = parseQqdocsSheet(fixture);
@@ -21,7 +24,7 @@ test("腾讯文档行映射为岗位并通过资格判定（提前批入池、�
   const rows = parseQqdocsSheet(fixture);
   const jobs = qqdocsRowsToJobs(rows, { tabId: "TAB", tabName: "测试表" });
   assert.equal(jobs.length, 2);
-  const statuses = mergeJobs(jobs).map((job) => classifyEligibility(job).status);
+  const statuses = mergeJobs(jobs).map((job) => classifyEligibility(job, now).status);
   assert.deepEqual(statuses, ["eligible", "excluded"]);
 });
 

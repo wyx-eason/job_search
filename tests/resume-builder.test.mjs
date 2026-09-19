@@ -283,7 +283,16 @@ test("审计记录每条事实的来源、状态与包装决策", () => {
   const facts = loadFacts();
   const audit = buildAudit({ facts, job });
   assert.ok(audit.factsUsed.length >= 2);
-  assert.ok(audit.factsUsed.every((f) => f.status === "unverified"));
+  assert.ok(
+    audit.factsUsed.every((f) => ["verified", "unverified"].includes(f.status)),
+    "事实状态只能是 verified / unverified"
+  );
+  assert.ok(audit.factsUsed.every((f) => Boolean(f.source)), "每条事实应记录来源");
+  assert.deepEqual(
+    audit.factsUsed.map((f) => f.status),
+    facts.map((f) => f.status),
+    "审计中的状态应与事实库保持一致"
+  );
   assert.ok(audit.packaging.length > 0);
   assert.equal(audit.jobId, job.id);
 });

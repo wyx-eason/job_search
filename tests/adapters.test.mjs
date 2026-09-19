@@ -6,6 +6,9 @@ import { parseSmartCampusAnnounce, enrichFromRegistry } from "../lib/adapters/sm
 import { decodeZggqzp, parseZggqzpAnnounce } from "../lib/adapters/zggqzp.mjs";
 import { mergeJobs, classifyEligibility } from "../lib/job-contract.mjs";
 
+// 固定判定基准时间，避免截止日期随真实日期推移导致用例失稳。
+const now = new Date("2026-08-01T00:00:00Z");
+
 test("智慧就业平台公告解析出标题、公司和过期状态", () => {
   const html = fs.readFileSync(path.resolve("tests/fixtures/smartcampus-sungrow-731143.html"), "utf8");
   const job = parseSmartCampusAnnounce(html, "https://24365.cq.smartedu.cn/campus/view/id/731143");
@@ -44,5 +47,5 @@ test("国企招聘网公告（GBK）解析出禾赛提前批岗位并通过资�
   assert.equal(job.deadline, "2026-08-31");
   assert.ok(job.description.includes("控制算法工程师"));
   const normalized = mergeJobs([job])[0];
-  assert.equal(classifyEligibility(normalized).status, "eligible");
+  assert.equal(classifyEligibility(normalized, now).status, "eligible");
 });

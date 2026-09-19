@@ -11,8 +11,10 @@ candidate/skills.yml
 candidate/pending-questions.md
 candidate/form-values.yml
 candidate/interview-defense-*.md
+candidate/*.md
 *.log
 .env
 .env.*
 !\.env.example
 config/llm.json
+tmp-*
