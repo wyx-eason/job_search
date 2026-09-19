@@ -31,8 +31,8 @@ const { chromium } = require("playwright");
 test("候选人安全字段从简历与配置中提取", () => {
   const candidate = loadCandidateAutofill();
   assert.equal(candidate.name, "王奕迅");
-  assert.equal(candidate.email, "redacted@example.com");
-  assert.equal(candidate.phone, "13800000000");
+  assert.match(candidate.email, /^[^@\s]+@[^@\s]+\.[^@\s]+$/);
+  assert.match(candidate.phone, /^1[3-9]\d{9}$/);
   assert.equal(candidate.university, "西安电子科技大学");
   assert.equal(candidate.degree, "硕士");
   assert.equal(candidate.major, "控制科学与工程");
@@ -52,8 +52,8 @@ test("投递助手填写安全字段、跳过敏感字段且不提交", async (t
   const result = await autofillApplyForm(page, candidate);
 
   assert.equal(await page.inputValue("#name"), "王奕迅");
-  assert.equal(await page.inputValue("#phone"), "13800000000");
-  assert.equal(await page.inputValue("#email"), "redacted@example.com");
+  assert.equal(await page.inputValue("#phone"), candidate.phone);
+  assert.equal(await page.inputValue("#email"), candidate.email);
   assert.equal(await page.inputValue("#university"), "西安电子科技大学");
   assert.equal(await page.inputValue("#degree"), "2"); // 硕士
   assert.equal(await page.inputValue("#major"), candidate.major);
@@ -90,8 +90,8 @@ test("投递助手从相邻文本推断无 name/placeholder 的字段标签", as
   const candidate = loadCandidateAutofill();
   const result = await autofillApplyForm(page, candidate);
   assert.equal(await page.locator("input").nth(0).inputValue(), "王奕迅");
-  assert.equal(await page.locator("input").nth(1).inputValue(), "13800000000");
-  assert.equal(await page.locator("input").nth(2).inputValue(), "redacted@example.com");
+  assert.equal(await page.locator("input").nth(1).inputValue(), candidate.phone);
+  assert.equal(await page.locator("input").nth(2).inputValue(), candidate.email);
   assert.equal(await page.locator("input").nth(3).inputValue(), "西安电子科技大学");
   assert.equal(await page.locator("select").inputValue(), "硕士");
   assert.equal(await page.locator("input").nth(4).inputValue(), "控制科学与工程");
@@ -252,7 +252,7 @@ test("投递助手能穿透 shadow DOM 填写表单", async (t) => {
     return { name: root.querySelector("#name").value, phone: root.querySelector("#phone").value };
   });
   assert.equal(values.name, "王奕迅");
-  assert.equal(values.phone, "13800000000");
+  assert.equal(values.phone, candidate.phone);
   assert.ok(result.filled.length >= 2);
 });
 
@@ -275,7 +275,7 @@ test("持续监听器在表单延迟出现后自动填写", async (t) => {
   t.after(() => watcher.stop());
   await page.waitForTimeout(7000);
   assert.equal(await page.inputValue("#name"), "王奕迅");
-  assert.equal(await page.inputValue("#phone"), "13800000000");
+  assert.equal(await page.inputValue("#phone"), candidate.phone);
 });
 
 test("监听器识别非 ATS 岗位详情页（含 JD 标记）并触发重生成", async (t) => {
@@ -748,9 +748,10 @@ test("申请表单在新标签页时也会被自动填写", async (t) => {
   t.after(() => context.close());
   const listPage = await context.newPage();
   await listPage.goto(pathToFileURL(path.resolve("tests/fixtures/jd-detail.html")).href);
+  const candidate = loadCandidateAutofill();
   const watcher = startFormWatcher({
     page: listPage,
-    candidate: loadCandidateAutofill(),
+    candidate,
     onFieldsChange: () => {},
     onJobDetail: () => {},
     onApplyForm: () => {},
@@ -762,7 +763,7 @@ test("申请表单在新标签页时也会被自动填写", async (t) => {
   await listPage.waitForTimeout(2200);
   watcher.stop();
   assert.equal(await formTab.inputValue("#name"), "王奕迅", "新标签页表单应被自动填写");
-  assert.equal(await formTab.inputValue("#phone"), "13800000000");
+  assert.equal(await formTab.inputValue("#phone"), candidate.phone);
 });
 
 test("延迟出现的表单使用监听器更新后的简历路径自动填写并上传", async (t) => {

@@ -76,9 +76,10 @@ test("自动导航：搜索岗位→点卡片→点立即投递→表单出现�
   const nav = await navigateToApply(page, job, { ats: "mokahr" });
   assert.equal(nav.matched, true);
   assert.ok(nav.log.some((l) => /立即投递/.test(l)));
-  const result = await autofillApplyForm(page, loadCandidateAutofill());
+  const candidate = loadCandidateAutofill();
+  const result = await autofillApplyForm(page, candidate);
   assert.equal(await page.inputValue("#name"), "王奕迅");
-  assert.equal(await page.inputValue("#phone"), "13800000000");
+  assert.equal(await page.inputValue("#phone"), candidate.phone);
   assert.ok(result.filled.length >= 2);
 });
 

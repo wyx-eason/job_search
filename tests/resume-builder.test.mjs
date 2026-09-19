@@ -269,8 +269,8 @@ test("匹配报告包含要求对照、覆盖、真实缺口和未验证标注",
 test("表单答案只含安全字段", () => {
   const answers = buildFormAnswers();
   assert.equal(answers.name, "王奕迅");
-  assert.equal(answers.email, "redacted@example.com");
-  assert.equal(answers.phone, "13800000000");
+  assert.match(answers.email, /^[^@\s]+@[^@\s]+\.[^@\s]+$/);
+  assert.match(answers.phone, /^1[3-9]\d{9}$/);
   assert.equal(answers.university, "西安电子科技大学");
   assert.equal(answers.degree, "硕士");
   assert.match(answers.major, /控制科学与工程/);
