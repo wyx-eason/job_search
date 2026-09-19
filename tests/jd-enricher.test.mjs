@@ -72,6 +72,31 @@ test("vivo 混合页标题优先取岗位名而非“在招N人”", () => {
   assert.equal(extractJobTitleFromPageText(text), "软件工程师（后端方向）-27届秋招");
 });
 
+test("网易互娱详情页使用“岗位描述”时仍能提取标题与 JD", () => {
+  const text = [
+    "游戏项目管理",
+    "游戏全生命周期项目管理",
+    "网易互娱2027届校园招聘",
+    "|",
+    "杭州、上海、广州",
+    "|",
+    "项目管理",
+    "|",
+    "2026-07-20",
+    "岗位描述",
+    "加入网易游戏互娱，参与游戏全生命周期项目管理。",
+    "岗位要求",
+    "我们希望您具备以下条件：",
+    "1. 专业不限，硕士及以上学历优先。"
+  ].join("\n");
+  assert.equal(extractJobTitleFromPageText(text), "游戏项目管理");
+  const jd = extractJdFromPageText(text);
+  assert.match(jd, /岗位描述/);
+  assert.match(jd, /加入网易游戏互娱/);
+  assert.match(jd, /岗位要求/);
+  assert.ok(!jd.includes("网易互娱2027届校园招聘"));
+});
+
 test("生成申请包时用真实 JD 而非粗关键词", async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enrich-"));
   const job = {

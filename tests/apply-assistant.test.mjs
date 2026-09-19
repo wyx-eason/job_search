@@ -20,7 +20,8 @@ import {
   loadCompleteFormValues,
   findActivePage,
   normalizeJobTitle,
-  extractJobsFromApiPayload
+  extractJobsFromApiPayload,
+  resolveApplyBrowser
 } from "../lib/apply-assistant.mjs";
 
 const config = JSON.parse(fs.readFileSync(path.resolve("config/apply.json"), "utf8"));
@@ -66,6 +67,74 @@ test("投递助手填写安全字段、跳过敏感字段且不提交", async (t
   assert.equal(result.submitted, false);
   assert.ok(result.filled.some((f) => f.includes("姓名")));
   assert.ok(result.skippedSensitive.some((f) => f.includes("身份证")));
+});
+
+test("投递助手从相邻文本推断无 name/placeholder 的字段标签", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-infer-label-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.setContent(`
+    <form>
+      <div class="form-item"><span>姓名</span><input></div>
+      <div class="form-item"><span>手机号</span><input></div>
+      <div class="form-item"><span>邮箱</span><input></div>
+      <div class="form-item"><span>毕业院校</span><input></div>
+      <div class="form-item"><span>学历</span><select><option value=""></option><option value="硕士">硕士</option></select></div>
+      <div class="form-item"><span>专业</span><input></div>
+    </form>
+  `);
+  const candidate = loadCandidateAutofill();
+  const result = await autofillApplyForm(page, candidate);
+  assert.equal(await page.locator("input").nth(0).inputValue(), "王奕迅");
+  assert.equal(await page.locator("input").nth(1).inputValue(), "13800000000");
+  assert.equal(await page.locator("input").nth(2).inputValue(), "redacted@example.com");
+  assert.equal(await page.locator("input").nth(3).inputValue(), "西安电子科技大学");
+  assert.equal(await page.locator("select").inputValue(), "硕士");
+  assert.equal(await page.locator("input").nth(4).inputValue(), "控制科学与工程");
+  assert.equal(result.skippedUnknown.length, 0);
+});
+
+test("投递助手识别腾讯文档式问题卡片中的无 name 字段", async (t) => {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-infer-question-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.setContent(`
+    <div class="question">
+      <div class="question-main">
+        <div class="question-main-content">姓名</div>
+        <div class="question-content">
+          <div class="form-simple">
+            <div class="form-simple-main">
+              <div class="form-ui-component-basic-text"><textarea placeholder="未填写"></textarea></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="question-main">
+        <div class="question-main-content">学校</div>
+        <div class="question-content">
+          <div class="form-simple">
+            <div class="form-simple-main">
+              <div class="form-ui-component-basic-text"><textarea placeholder="未填写"></textarea></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+  const candidate = loadCandidateAutofill();
+  const result = await autofillApplyForm(page, candidate);
+  const values = await page.locator("textarea").evaluateAll((els) => els.map((el) => el.value));
+  assert.deepEqual(values, ["王奕迅", "西安电子科技大学"]);
+  assert.equal(result.skippedUnknown.length, 0);
 });
 
 test("投递助手能穿透 iframe 填写表单", async (t) => {
@@ -520,9 +589,57 @@ test("extractJobsFromApiPayload 提取岗位标题与 JD", () => {
   assert.equal(jobs[0].id, "x1");
 });
 
+test("extractJobsFromApiPayload 兼容网易互娱 list 与 detail 响应", () => {
+  const list = {
+    code: 200,
+    data: {
+      list: [
+        {
+          id: 4748,
+          positionName: "游戏项目管理",
+          positionDescription: "岗位描述：负责游戏全生命周期项目管理。",
+          positionRequirement: "岗位要求：硕士及以上学历优先。"
+        }
+      ]
+    }
+  };
+  const listJobs = extractJobsFromApiPayload(list);
+  assert.equal(listJobs.length, 1);
+  assert.equal(listJobs[0].title, "游戏项目管理");
+  assert.match(listJobs[0].jd, /岗位描述/);
+  assert.match(listJobs[0].jd, /岗位要求/);
+  assert.equal(listJobs[0].id, "4748");
+
+  const detail = {
+    code: 200,
+    data: {
+      id: 4748,
+      positionName: "游戏项目管理",
+      positionDescription: "岗位描述：负责游戏全生命周期项目管理。",
+      positionRequirement: "岗位要求：硕士及以上学历优先。"
+    }
+  };
+  const detailJobs = extractJobsFromApiPayload(detail);
+  assert.equal(detailJobs.length, 1);
+  assert.equal(detailJobs[0].title, "游戏项目管理");
+});
+
 test("识别申请表单字段组合（区别于搜索框）", () => {
   assert.equal(looksLikeApplyForm([{ placeholder: "请输入姓名" }, { placeholder: "推荐码" }, { name: "resumeKey" }]), true);
   assert.equal(looksLikeApplyForm([{ placeholder: "搜索职位关键词" }]), false);
+});
+
+test("识别使用英文 name 属性的申请表单", () => {
+  assert.equal(
+    looksLikeApplyForm([
+      { name: "name" },
+      { name: "phone" },
+      { name: "email" },
+      { name: "university" }
+    ]),
+    true
+  );
+  assert.equal(looksLikeApplyForm([{ name: "keyword" }, { name: "q" }]), false);
 });
 
 test("读取表单补充字段配置", () => {
@@ -771,4 +888,36 @@ test("autoFill=false 时检测到表单不自动填写，但仍触发表单事�
   await page.waitForTimeout(2200);
   assert.equal(await page.inputValue("#name"), "", "autoFill=false 时不应自动填写");
   assert.ok(formEvents >= 1, "仍应检测到表单并触发 onApplyForm");
+});
+
+test("投递浏览器默认用 Edge，Edge 缺失时回退到无头浏览器", () => {
+  const projectRoot = path.resolve(import.meta.dirname, "..");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apply-browser-"));
+  const fakeEdge = path.join(dir, "msedge.exe");
+  const fakeChrome = path.join(dir, "chrome.exe");
+  fs.writeFileSync(fakeEdge, "");
+  fs.writeFileSync(fakeChrome, "");
+
+  const resolved = resolveApplyBrowser({
+    applyBrowserExecutable: fakeEdge,
+    applyProfileDir: "local/edge-profile",
+    browserExecutable: fakeChrome,
+    profileDir: "local/chrome-profile"
+  });
+  assert.equal(resolved.executablePath, fakeEdge);
+  assert.equal(resolved.profileDir, path.join(projectRoot, "local/edge-profile"));
+
+  const fallback = resolveApplyBrowser({
+    applyBrowserExecutable: path.join(dir, "missing-edge.exe"),
+    applyProfileDir: "local/edge-profile",
+    browserExecutable: fakeChrome,
+    profileDir: "local/chrome-profile"
+  });
+  assert.equal(fallback.executablePath, fakeChrome);
+  assert.equal(fallback.profileDir, path.join(projectRoot, "local/chrome-profile"));
+});
+
+test("config/apply.json 的投递浏览器指向 Edge 且使用独立 profile 目录", () => {
+  assert.match(config.applyBrowserExecutable, /msedge\.exe$/i);
+  assert.equal(config.applyProfileDir, "local/edge-profile");
 });

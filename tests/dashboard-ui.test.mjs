@@ -123,3 +123,21 @@ test("投递周报显示已投递公司列表且默认折叠", async (t) => {
   assert.equal(await page.isVisible("#appliedJobs"), true);
   assert.match(await page.textContent("#appliedJobs"), /示例 AI 公司/);
 });
+
+test("岗位“申请”链接在当前窗口打开，不新开浏览器窗口", async (t) => {
+  const { url } = await withUiServer(t);
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "ui-link-profile-"));
+  const context = await chromium.launchPersistentContext(profileDir, {
+    executablePath: config.browserExecutable,
+    headless: true
+  });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(url);
+  await page.waitForSelector("#allJobs tr a", { state: "attached" });
+  const targets = await page.$$eval("#allJobs tr a", (nodes) => nodes.map((a) => a.getAttribute("target")));
+  assert.ok(targets.length > 0, "应至少渲染一个可跳转的申请链接");
+  for (const target of targets) {
+    assert.notEqual(target, "_blank", "申请链接不应在新窗口/新标签打开");
+  }
+});

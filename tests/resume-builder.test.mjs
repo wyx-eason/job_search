@@ -115,6 +115,61 @@ test("无方向信号时按 JD 重合度选单一基类，避免合并两份", (
   assert.equal(sel.facts[0].id, "ai");
 });
 
+test("软开 JD 选择 C++ 软开基类，不混入 AI/ADAS 内容", () => {
+  const facts = [
+    { id: "ai", claim: "教育背景 示例大学 硕士。实习经历 博世：AI Agent 与 RAG 大模型应用，熟悉 LLM、Python。", source: "agent_llm_general_2026.tex", status: "unverified" },
+    { id: "adas", claim: "教育背景 示例大学 硕士。实习经历 博世：ADAS 标定与 LQR 控制，熟悉 C++、嵌入式。", source: "integration_adas_2026.tex", status: "unverified" },
+    { id: "softdev", claim: "教育背景 示例大学 硕士。实习经历 霍莱沃：C++ 测试。项目经历 基于 C++ 的高并发 Web 服务器，使用 Epoll、多线程、HTTP。技术技能 C++、Linux、网络编程。", source: "softdev_cpp_2026", status: "unverified" },
+    { id: "manual", claim: "荣誉与奖项 研究生期间获得校级二等奖学金。", source: "manual-confirm", status: "unverified" }
+  ];
+  const sel = selectBaseResumeFacts(facts, "岗位职责：负责 Linux 下 C++ 高并发服务器开发，使用 epoll、多线程、HTTP 协议解析。任职要求：熟悉 C++、网络编程。");
+  assert.equal(sel.mode, "softdev");
+  assert.deepEqual(sel.facts.map((f) => f.id), ["softdev", "manual"]);
+  assert.equal(pickResumeMode("岗位职责：负责 ADAS 智驾标定，LQR 参数匹配与实车验证。"), "adas");
+  assert.equal(pickResumeMode("岗位职责：负责 LLM 大模型应用与 RAG 智能问答系统开发。"), "ai");
+});
+
+test("手动指定基类可覆盖 JD 方向；Agent JD 自动识别 Agent 基类", () => {
+  const facts = [
+    { id: "ai", claim: "教育背景 示例大学 硕士。实习经历 博世：AI Agent 与 RAG 大模型应用，熟悉 LLM、Python。", source: "agent_llm_general_2026.tex", status: "unverified" },
+    { id: "adas", claim: "教育背景 示例大学 硕士。实习经历 博世：ADAS 标定与 LQR 控制，熟悉 C++、嵌入式。", source: "integration_adas_2026.tex", status: "unverified" },
+    { id: "softdev", claim: "教育背景 示例大学 硕士。项目经历 基于 C++ 的高并发 Web 服务器。技术技能 C++、Linux、网络编程。", source: "softdev_cpp_2026", status: "unverified" },
+    { id: "agent", claim: "教育背景 示例大学 硕士。实习经历 博世：实车调参 Agent，基于 LangGraph 的工具调用与安全约束。", source: "agent_system_2026", status: "unverified" },
+    { id: "manual", claim: "荣誉与奖项 研究生期间获得校级二等奖学金。", source: "manual-confirm", status: "unverified" }
+  ];
+  const forced = selectBaseResumeFacts(facts, "岗位职责：负责 LLM 大模型应用与 RAG 智能问答。", "adas");
+  assert.equal(forced.mode, "adas");
+  assert.deepEqual(forced.facts.map((f) => f.id), ["adas", "manual"]);
+  const agentForced = selectBaseResumeFacts(facts, "岗位职责：负责 LLM 大模型应用与 RAG 智能问答。", "agent");
+  assert.equal(agentForced.mode, "agent");
+  assert.deepEqual(agentForced.facts.map((f) => f.id), ["agent", "manual"]);
+  const autoAgent = selectBaseResumeFacts(facts, "岗位职责：负责 Agent 架构设计，基于 LangGraph 编排多智能体工具调用。");
+  assert.equal(autoAgent.mode, "agent");
+  assert.equal(autoAgent.facts[0].id, "agent");
+});
+
+test("按指定基类生成申请包：ADAS 基类不混入 AI 专属内容，Agent 基类包含 LangGraph", async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "applypkg-base-"));
+  const job = {
+    company_raw: "示例公司",
+    title_raw: "研发工程师",
+    jd_text: "岗位职责：负责公司研发工作。任职要求：硕士研究生及以上学历，2027届。",
+    posting_url: "https://example.com/apply"
+  };
+  const adas = await generateApplicationPackage({ job, root: tmpRoot, polish: false, base: "adas" });
+  const adasPlain = fs.readFileSync(path.join(adas.packagePath, "resume.html"), "utf8").replace(/<[^>]+>/g, "");
+  assert.ok(adasPlain.includes("ADAS 与系统集成"));
+  assert.ok(adasPlain.includes("LQR"));
+  assert.ok(!adasPlain.includes("多阶段问答流水线"), "ADAS 基类不应混入 AI 专属内容");
+  const agent = await generateApplicationPackage({ job, root: tmpRoot, polish: false, base: "agent" });
+  const agentPlain = fs.readFileSync(path.join(agent.packagePath, "resume.html"), "utf8").replace(/<[^>]+>/g, "");
+  assert.ok(agentPlain.includes("LangGraph"));
+  assert.ok(agentPlain.includes("实车调参 Agent"));
+  const agentHtml = fs.readFileSync(path.join(agent.packagePath, "resume.html"), "utf8");
+  assert.ok(agentHtml.includes('src="photo.jpg"'), "生成简历应包含基类照片");
+  assert.ok(agentHtml.includes('class="header"'), "生成简历应保留基类头部容器");
+});
+
 test("AI 岗生成聚焦简历：完整展开 AI 实习要点且不混入 ADAS 专属内容", async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "applypkg-ai-"));
   const result = await generateApplicationPackage({
@@ -132,7 +187,7 @@ test("AI 岗生成聚焦简历：完整展开 AI 实习要点且不混入 ADAS �
   assert.ok(plain.includes("多阶段问答流水线"), "AI 实习要点应完整保留");
   assert.ok(plain.includes("Recall@4"), "AI 实习要点应完整保留");
   assert.ok(plain.includes("白名单校验"), "AI 实习要点应完整保留");
-  assert.ok(plain.includes("电磁与信号感知部门"), "霍莱沃新口径应完整保留");
+  assert.ok(plain.includes("软件开发实习生"), "霍莱沃新口径应完整保留");
   assert.ok(plain.includes("JSON Schema"), "AI 实习要点应完整保留");
   assert.ok(!plain.includes("参与 ADAS 控制参数的匹配与标定工作"), "不应混入 ADAS 专属实习要点");
   assert.ok(!plain.includes("ADAS 与系统集成"), "不应混入 ADAS 专属技能板块");
@@ -233,7 +288,7 @@ test("审计记录每条事实的来源、状态与包装决策", () => {
   assert.equal(audit.jobId, job.id);
 });
 
-test("生成完整申请包：6 个文件齐全且 PDF 非空", async () => {
+test("生成完整申请包：7 个文件齐全（含照片）且 PDF 非空", async () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "applypkg-"));
   const result = await generateApplicationPackage({ job, root: tmpRoot, polish: false });
   const files = fs.readdirSync(result.packagePath).sort();
@@ -242,6 +297,7 @@ test("生成完整申请包：6 个文件齐全且 PDF 非空", async () => {
     "generation-audit.json",
     "job-description.md",
     "match-report.md",
+    "photo.jpg",
     "resume.html",
     "resume.pdf"
   ]);

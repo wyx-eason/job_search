@@ -178,3 +178,21 @@ test("loadLlmConfig：enabled=false 或缺少 key 时返回 null", () => {
   assert.equal(cfg.baseUrl, "https://api.deepseek.com/v1");
   assert.equal(cfg.model, "deepseek-chat");
 });
+
+test("润色输出带尾部说明文本时仍能解析 JSON", async () => {
+  const sections = { education: [], internship: ["原实习"], project: [], skills: [], honors: [], other: [] };
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({
+      output_text: JSON.stringify({ internship: [["改写后的实习"]], project: [], skills: [] }) + "\n好的，以上是改写后的简历要点。"
+    })
+  });
+  const { sections: next, meta } = await polishResumeSections({
+    jdText: "JD",
+    sections,
+    config: { apiKey: "k", baseUrl: "https://api.deepseek.com/v1", model: "m", apiStyle: "responses" },
+    fetchImpl
+  });
+  assert.equal(meta.ok, true);
+  assert.ok(next.internship[0].includes("改写后的实习"));
+});

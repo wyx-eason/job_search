@@ -253,7 +253,7 @@ document.getElementById("feedbackBtn").addEventListener("click", async () => {
   showPreview(regen.packagePath);
 });
 const link = (j) => (j.apply_url || j.posting_url)
-  ? `<a href="${esc(j.apply_url || j.posting_url)}" target="_blank" rel="noopener">申请</a>`
+  ? `<a href="${esc(j.apply_url || j.posting_url)}">申请</a>`
   : '<span class="muted">无链接</span>';
 const badge = (s) => {
   if (!s) return "";

@@ -45,7 +45,8 @@ export function createDashboardServer(options = {}) {
     session.regenLock = true;
     try {
       const selectedRevision = session.selectedRevision || 0;
-      const detailPage = session.selectedDetailPage || session.page;
+      const lockedDetail = session.selectedDetailPage && !session.selectedDetailPage.isClosed() ? session.selectedDetailPage : null;
+      const detailPage = lockedDetail || await locateActivePage(session.context, session.page) || session.page;
       const text = session.selectedPageText || await getPageInnerText(detailPage);
       // 手动点击/提交意见 = 用户明确要求重做，跳过“JD 未变化”类防重复限制；
       // JD 取页面实时内容，页面里没有就复用上次成功生成时的 JD，保证预览丢失后仍可重生成
@@ -124,16 +125,27 @@ export function createDashboardServer(options = {}) {
     }
   }
 
-  async function generateResumeFromCurrentPage(session) {
-    const activePage = await locateActivePage(session.context, session.page);
+  async function generateResumeFromCurrentPage(session, base = "auto") {
+    // 优先使用 watcher 已锁定的岗位详情页（用户点击投递/申请时捕获），
+    // 否则按“用户最后操作/新打开的页面”定位当前活动页
+    const lockedDetail = session.selectedDetailPage && !session.selectedDetailPage.isClosed() ? session.selectedDetailPage : null;
+    const activePage = lockedDetail || await locateActivePage(session.context, session.page);
     if (!activePage || activePage.isClosed()) throw new Error("没有可用的浏览器页面，请重新点击“去投递”");
     const text = await readPageText(activePage);
     let jobTitle = "";
     let jdText = "";
     let sourceUrl = activePage.url();
-    if (isJobDetailPageText(text)) {
-      jobTitle = extractJobTitleFromPageText(text) || session.selectedJobTitle || session.job?.title_raw || session.job?.title || "";
-      jdText = extractJdFromPageText(text) || session.selectedJobJd || session.lastJdText || session.job?.jd_text || "";
+    const isDetail = isJobDetailPageText(text);
+    if (isDetail || (lockedDetail && (session.selectedJobJd || session.selectedJobTitle))) {
+      if (lockedDetail && session.selectedJobJd) {
+        // 已锁定岗位且有接口抓取的 JD：以锁定信息为准
+        jdText = session.selectedJobJd;
+        jobTitle = session.selectedJobTitle || extractJobTitleFromPageText(text) || session.job?.title_raw || session.job?.title || "";
+        sourceUrl = session.selectedDetailUrl || sourceUrl;
+      } else {
+        jobTitle = extractJobTitleFromPageText(text) || session.selectedJobTitle || session.job?.title_raw || session.job?.title || "";
+        jdText = extractJdFromPageText(text) || session.selectedJobJd || session.lastJdText || session.job?.jd_text || "";
+      }
     } else if (session.selectedJobJd && session.selectedJobTitle) {
       // 当前页不是 JD 页（例如已点“投递”进入申请表单），回退到本次会话用户点击投递锁定的岗位
       jobTitle = session.selectedJobTitle;
@@ -151,7 +163,7 @@ export function createDashboardServer(options = {}) {
       jd_text: jdText
     };
     console.log(`[投递会话] 开始按当前页面生成简历 | 岗位=${jobTitle || "未知"} | jdLen=${jdText.length} | url=${sourceUrl}`);
-    const pkg = await generatePackage({ job, root, userFeedback: session.feedback || "" });
+    const pkg = await generatePackage({ job, root, userFeedback: session.feedback || "", base });
     const uploadPdf = prepareUploadResume(pkg.packagePath, job.company_raw, job.title_raw);
     session.resumePdfPath = uploadPdf;
     session.watcher?.setResumePdfPath?.(uploadPdf);
@@ -258,6 +270,35 @@ export function createDashboardServer(options = {}) {
           if (existingSession) applySessions.delete(job.id);
           let pkg = null;
           let resumePdfPath = null;
+          const earlyEvents = [];
+          const applyJobSelection = (session, { revision } = {}) => {
+            if (!session) return;
+            session.selectedRevision = Math.max(session.selectedRevision || 0, revision || 0);
+            session.formPage = null;
+            session.resumePdfPath = null;
+          };
+          const applyJobDetail = (session, { revision, page: detailPage, url: detailUrl, pageText, jobTitle, jdText } = {}) => {
+            if (!session) return;
+            if (detailPage && !detailPage.isClosed()) session.selectedDetailPage = detailPage;
+            session.selectedDetailUrl = detailUrl || detailPage?.url() || "";
+            session.selectedPageText = pageText || "";
+            if (jobTitle) session.selectedJobTitle = jobTitle;
+            session.selectedJobJd = jdText || extractJdFromPageText(pageText || "") || "";
+            session.selectedRevision = Math.max(session.selectedRevision || 0, revision || 0);
+            session.lastWatcherEvent = { at: new Date().toISOString(), type: "jobDetail" };
+            console.log(`[投递会话] 锁定用户投递的岗位详情 | 岗位=${session.selectedJobTitle || "未知"} | url=${session.selectedDetailUrl}`);
+          };
+          const applyApplyForm = (session, { revision, page: formPage } = {}) => {
+            if (!session || (revision || 0) !== (session.selectedRevision || 0)) return;
+            if (formPage && !formPage.isClosed()) session.formPage = formPage;
+            session.lastWatcherEvent = { at: new Date().toISOString(), type: "applyForm" };
+            console.log(`[投递会话] 检测到申请表单 | url=${formPage ? formPage.url() : ""}`);
+          };
+          const dispatchEvent = (type, event, applyFn) => {
+            const session = applySessions.get(job.id) || assistant;
+            if (session) applyFn(session, event);
+            else earlyEvents.push({ type, event, applyFn });
+          };
           const fieldsDir = path.join(root, "output", "form-fields");
           fs.mkdirSync(fieldsDir, { recursive: true });
           const fieldsFile = path.join(fieldsDir, `${job.id}-${Date.now()}.json`);
@@ -278,38 +319,17 @@ export function createDashboardServer(options = {}) {
             resumePdfPath,
             onFieldsChange: (fields) => writeFields(fields),
             onJobSelection: ({ revision } = {}) => {
-              const session = applySessions.get(job.id) || assistant;
-              if (session) {
-                session.selectedRevision = Math.max(session.selectedRevision || 0, revision || 0);
-                session.formPage = null;
-                session.resumePdfPath = null;
-              }
+              dispatchEvent("jobSelection", { revision }, applyJobSelection);
             },
             onJobDetail: ({ revision, page: detailPage, url: detailUrl, pageText, jobTitle, jdText } = {}) => {
-              const session = applySessions.get(job.id) || assistant;
-              if (session) {
-                if (detailPage && !detailPage.isClosed()) session.selectedDetailPage = detailPage;
-                session.selectedDetailUrl = detailUrl || detailPage?.url() || "";
-                session.selectedPageText = pageText || "";
-                if (jobTitle) session.selectedJobTitle = jobTitle;
-                session.selectedJobJd = jdText || extractJdFromPageText(pageText || "") || "";
-                session.selectedRevision = Math.max(session.selectedRevision || 0, revision || 0);
-                session.lastWatcherEvent = { at: new Date().toISOString(), type: "jobDetail" };
-                console.log(`[投递会话] 锁定用户投递的岗位详情 | 岗位=${session.selectedJobTitle || "未知"} | url=${session.selectedDetailUrl}`);
-                // 手动模式：不自动重生成，等待用户点击“按当前页面生成简历”
-              }
+              dispatchEvent("jobDetail", { revision, page: detailPage, url: detailUrl, pageText, jobTitle, jdText }, applyJobDetail);
             },
             onApplyForm: ({ revision, page: formPage } = {}) => {
-              const session = applySessions.get(job.id) || assistant;
-              if (session && (revision || 0) === (session.selectedRevision || 0)) {
-                if (formPage && !formPage.isClosed()) session.formPage = formPage;
-                session.lastWatcherEvent = { at: new Date().toISOString(), type: "applyForm" };
-                console.log(`[投递会话] 检测到申请表单 | url=${formPage ? formPage.url() : ""}`);
-              }
+              dispatchEvent("applyForm", { revision, page: formPage }, applyApplyForm);
             }
           });
           writeFields(assistant.result.formFields || []);
-          applySessions.set(job.id, {
+          const session = {
             ...assistant,
             resumePdfPath,
             packagePath: pkg?.packagePath || null,
@@ -320,7 +340,9 @@ export function createDashboardServer(options = {}) {
             regenLock: false,
             lastRegen: null,
             selectedRevision: 0
-          });
+          };
+          applySessions.set(job.id, session);
+          for (const queued of earlyEvents) queued.applyFn(session, queued.event);
           res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
           res.end(
             JSON.stringify({
@@ -343,14 +365,14 @@ export function createDashboardServer(options = {}) {
       if (req.method === "POST" && req.url === "/api/apply/current-resume") {
         let body = "";
         for await (const chunk of req) body += chunk;
-        const { sessionId, jobId } = JSON.parse(body || "{}");
+        const { sessionId, jobId, base } = JSON.parse(body || "{}");
         const session = applySessions.get(sessionId || jobId);
         if (!session) {
           res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ error: "没有打开的投递会话，请重新点击去投递" }));
           return;
         }
-        const out = await generateResumeFromCurrentPage(session);
+        const out = await generateResumeFromCurrentPage(session, base);
         if (out?.error) {
           res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ error: out.error }));
@@ -384,14 +406,14 @@ export function createDashboardServer(options = {}) {
       if (req.method === "POST" && req.url === "/api/apply/regenerate") {
         let body = "";
         for await (const chunk of req) body += chunk;
-        const { sessionId, jobId } = JSON.parse(body || "{}");
+        const { sessionId, jobId, base } = JSON.parse(body || "{}");
         const session = applySessions.get(sessionId || jobId);
         if (!session) {
           res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ error: "没有打开的投递会话，请重新点击去投递" }));
           return;
         }
-        const out = await generateResumeFromCurrentPage(session);
+        const out = await generateResumeFromCurrentPage(session, base);
         if (out?.error) {
           res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ error: out.error }));
@@ -463,6 +485,33 @@ export function createDashboardServer(options = {}) {
           res.end(JSON.stringify({ error: error.message }));
         } finally {
           store.close();
+        }
+        return;
+      }
+      const genMatch = req.url.match(/^\/api\/jobs\/([^/]+)\/generate-resume$/);
+      if (req.method === "POST" && genMatch) {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        const { base } = JSON.parse(body || "{}");
+        const store = openStore(dbPath);
+        let job = null;
+        try {
+          job = store.listJobs({}).find((row) => row.id === decodeURIComponent(genMatch[1]));
+        } finally {
+          store.close();
+        }
+        if (!job) {
+          res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: "岗位不存在" }));
+          return;
+        }
+        try {
+          const pkg = await generatePackage({ job, root, base: base || "auto" });
+          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ packagePath: pkg.packagePath, files: pkg.files, qa: pkg.qa, polish: pkg.polish || null }));
+        } catch (error) {
+          res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: `简历生成失败：${error.message}` }));
         }
         return;
       }

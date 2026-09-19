@@ -1,5 +1,7 @@
 {
   "playwrightPackage": "C:/Users/A/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/package.json",
   "browserExecutable": "C:/Users/A/AppData/Local/Google/Chrome/Application/chrome.exe",
-  "profileDir": "local/chrome-profile"
+  "profileDir": "local/chrome-profile",
+  "applyBrowserExecutable": "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  "applyProfileDir": "local/edge-profile"
 }
